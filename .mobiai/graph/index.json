@@ -1,0 +1,117 @@
+{
+  "version": 1,
+  "generatedAt": "2026-09-15T15:37:25.172438Z",
+  "root": "/Users/diego/FlutterProjects/dogdoc",
+  "files": [
+    {
+      "path": "android/app/src/main/kotlin/com/dogdoc/abt/dogdoc/MainActivity.kt",
+      "language": "kotlin",
+      "lines": 5,
+      "imports": [
+        "io.flutter.embedding.android.FlutterActivity"
+      ],
+      "symbols": [
+        {
+          "name": "MainActivity",
+          "kind": "class",
+          "line": 5
+        }
+      ]
+    },
+    {
+      "path": "ios/Flutter/ephemeral/Packages/.packages/FlutterFramework/Package.swift",
+      "language": "swift",
+      "lines": 22,
+      "imports": [
+        "PackageDescription"
+      ],
+      "symbols": []
+    },
+    {
+      "path": "ios/Flutter/ephemeral/Packages/.packages/FlutterFramework/Sources/FlutterFramework/FlutterFramework.swift",
+      "language": "swift",
+      "lines": 3,
+      "imports": [],
+      "symbols": []
+    },
+    {
+      "path": "ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Package.swift",
+      "language": "swift",
+      "lines": 28,
+      "imports": [
+        "PackageDescription"
+      ],
+      "symbols": []
+    },
+    {
+      "path": "ios/Flutter/ephemeral/Packages/FlutterGeneratedPluginSwiftPackage/Sources/FlutterGeneratedPluginSwiftPackage/FlutterGeneratedPluginSwiftPackage.swift",
+      "language": "swift",
+      "lines": 3,
+      "imports": [],
+      "symbols": []
+    },
+    {
+      "path": "ios/Runner/AppDelegate.swift",
+      "language": "swift",
+      "lines": 16,
+      "imports": [
+        "Flutter",
+        "UIKit"
+      ],
+      "symbols": [
+        {
+          "name": "application",
+          "kind": "func",
+          "line": 6,
+          "modifiers": [
+            "override"
+          ]
+        },
+        {
+          "name": "didInitializeImplicitFlutterEngine",
+          "kind": "func",
+          "line": 13
+        }
+      ]
+    },
+    {
+      "path": "ios/Runner/SceneDelegate.swift",
+      "language": "swift",
+      "lines": 6,
+      "imports": [
+        "Flutter",
+        "UIKit"
+      ],
+      "symbols": [
+        {
+          "name": "SceneDelegate",
+          "kind": "class",
+          "line": 4
+        }
+      ]
+    },
+    {
+      "path": "ios/RunnerTests/RunnerTests.swift",
+      "language": "swift",
+      "lines": 12,
+      "imports": [
+        "Flutter",
+        "UIKit",
+        "XCTest"
+      ],
+      "symbols": [
+        {
+          "name": "RunnerTests",
+          "kind": "class",
+          "line": 5
+        },
+        {
+          "name": "testExample",
+          "kind": "func",
+          "line": 7,
+          "container": "RunnerTests"
+        }
+      ]
+    }
+  ]
+}

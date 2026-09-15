@@ -1,0 +1,18 @@
+{
+  "version": 1,
+  "project_name": "dogdoc",
+  "project_type": "flutter",
+  "platforms": [
+    "android",
+    "ios",
+    "shared"
+  ],
+  "rules": [
+    "Prioritize clean architecture",
+    "Prepare code for testing",
+    "Do not introduce hacks",
+    "Respect existing project conventions"
+  ],
+  "created_at": "2026-09-15T15:28:33Z",
+  "updated_at": "2026-09-15T15:28:44Z"
+}

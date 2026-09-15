@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "project_name": "dogdoc",
+  "project_type": "flutter",
+  "platforms": [
+    "android",
+    "ios",
+    "shared"
+  ],
+  "build_systems": [
+    "gradle"
+  ],
+  "ui": [],
+  "di": [],
+  "network": [],
+  "persistence": [],
+  "serialization": [],
+  "testing": [],
+  "integrations": [],
+  "ci_cd": [],
+  "detected_files": {
+    "android_manifest": "android/app/src/debug/AndroidManifest.xml",
+    "pubspec_yaml": "pubspec.yaml",
+    "xcodeproj": "ios/Runner.xcodeproj",
+    "xcworkspace": "ios/Runner.xcodeproj/project.xcworkspace"
+  },
+  "warnings": [],
+  "created_at": "2026-09-15T15:28:44Z",
+  "updated_at": "2026-09-15T15:28:44Z"
+}
