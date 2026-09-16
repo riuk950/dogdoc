@@ -80,13 +80,16 @@
 - **Alcance:**
   - `lib/data/services/local_notification_service_impl.dart`.
   - Configuración de `AndroidNotificationChannel` de alta prioridad con sonido y vibración.
-  - Conversión determinista de UUIDs a enteros positivos de 32 bits (`hashCode.abs() % 2147483647`).
+  - Conversión determinista de UUIDs a enteros positivos de 32 bits con signo:
+    - Recurrentes: `((reminder.id.hashCode ^ dayOfWeek) & 0x7FFFFFFF)`.
+    - Puntuales/Snooze: `((reminder.id.hashCode ^ (scheduledAt.millisecondsSinceEpoch ~/ 1000)) & 0x7FFFFFFF)`.
   - Inicialización de `tz.initializeTimeZones()` y mapeo con `flutter_timezone`.
   - Implementación de `scheduleRecurring` usando `zonedSchedule` con `matchDateTimeComponents: DateTimeComponents.dayOfWeekAndTime`.
   - Configuración del callback `onDidReceiveNotificationResponse` emitiendo al stream `onNotificationTapped`.
+  - Verificación de `canScheduleExactAlarms()` con fallback elegante a inexactas si no está disponible.
 - **Dependencias:** TASK-02.
-- **Criterios resueltos:** CA-01, CA-03, CA-06, CA-08.
-- **Método de validación:** Test unitario verificando la lógica de cálculo de fecha próxima con `tz.TZDateTime` y despacho de eventos.
+- **Criterios resueltos:** CA-01, CA-03, CA-06, CA-08, CA-11, CA-12.
+- **Método de validación:** Test unitario verificando la lógica de cálculo de ID numérico sin colisiones, fecha próxima con `tz.TZDateTime` y despacho de eventos.
 
 ---
 
@@ -97,9 +100,10 @@
     - `android.permission.POST_NOTIFICATIONS`
     - `android.permission.RECEIVE_BOOT_COMPLETED`
     - `android.permission.SCHEDULE_EXACT_ALARM`
+    - `android.permission.USE_EXACT_ALARM`
   - Declarar `com.dexterous.flutterlocalnotifications.ScheduledNotificationBootReceiver` en `<application>`.
 - **Dependencias:** Ninguna.
-- **Criterios resueltos:** CA-05, CA-09.
+- **Criterios resueltos:** CA-05, CA-09, CA-12.
 - **Método de validación:** Comprobación estática del manifiesto y verificación de compilación en Android.
 
 ---
@@ -110,10 +114,10 @@
   - `lib/data/repositories/reminder_repository_impl.dart`.
   - Mapeo entre entidades de dominio y filas de Drift (`Reminder` <-> `ReminderTableData`).
   - Consultas reactivas `watchAllReminders` y filtradas por mascota.
-  - Inserción de tomas en `MedicationDoseLogsTable` y consulta de tomas de hoy (`where administeredAt >= inicioDelDia`).
+  - Inserción de tomas en `MedicationDoseLogsTable` y consulta de tomas de hoy delimitando estrictamente el inicio y fin del día local (`00:00:00` a `23:59:59.999`).
 - **Dependencias:** TASK-03, TASK-04, TASK-05.
-- **Criterios resueltos:** CA-01, CA-03, CA-04, CA-07, CA-10.
-- **Método de validación:** Test de integración del repositorio validando el flujo completo de guardado y lectura reactiva.
+- **Criterios resueltos:** CA-01, CA-03, CA-04, CA-07, CA-10, CA-12.
+- **Método de validación:** Test de integración del repositorio validando el flujo completo de guardado, cálculo de día calendario y lectura reactiva.
 
 ---
 
@@ -201,5 +205,5 @@
   - Ejecutar `flutter test` verificando que todos los tests unitarios, de BLoC y de widget pasen al 100%.
   - Actualizar checkboxes de progreso en este archivo `TASKS.md`.
 - **Dependencias:** Todas las tareas previas (TASK-01 a TASK-13).
-- **Criterios resueltos:** CA-01 a CA-10.
+- **Criterios resueltos:** CA-01 a CA-12.
 - **Método de validación:** Salida exitosa de `flutter analyze` y `flutter test`.

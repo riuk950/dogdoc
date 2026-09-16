@@ -39,14 +39,9 @@ El usuario puede dar de alta el perfil clínico de su perro ingresando su nombre
 
 ## Fuera de alcance
 
-<!-- Va casi al principio a propósito: es lo que evita que el agente se invente
-     trabajo a mitad de camino. Si lo dejas vacío, llenará el vacío por su
-     cuenta y te enterarás en la review. -->
-
 - Registro de antecedentes alérgicos complejos (chips de diagnóstico de atopia, alergia alimentaria) y escalas de picor basal (1 a 5), que corresponden a la feature de Seguimiento Clínico de Alergias.
 - Configuración de dietas detalladas (piensos hidrolizados, BARF) y terapias farmacológicas activas (Apoquel, Cytopoint, etc.).
 - Escaneo de microchip por cámara / lector óptico.
-- Edición posterior o borrado del perfil (pertenecen a la feature de Gestión de Perfiles).
 - Galería de múltiples fotos por mascota (en esta feature se gestiona únicamente el avatar principal).
 - Herramientas de recorte o edición avanzada de imagen (se aplica redimensionamiento automático y compresión estándar).
 
@@ -183,6 +178,25 @@ El usuario puede dar de alta el perfil clínico de su perro ingresando su nombre
 
 ---
 
+## Requisitos Funcionales
+
+| Requisito | Descripción | Criterio de Aceptación Asociado |
+|---|---|---|
+| **RF-01** | Alta completa de mascota con nombre, raza, fecha de nacimiento, peso, sexo y avatar fotográfico. | CA-01 |
+| **RF-02** | Creación de perfil sin fotografía asignando ilustración de avatar predeterminado. | CA-02 |
+| **RF-03** | Selección de fecha de nacimiento con restricción de fechas futuras y cálculo automático de edad. | CA-03 |
+| **RF-04** | Selector numérico de peso con botones de incremento/decremento de 0.5 kg y valor mínimo $> 0$. | CA-04 |
+| **RF-05** | Validación obligatoria de campo de nombre con feedback de error inline. | CA-05 |
+| **RF-06** | Selector de raza conectado al catálogo estático `dogs.json` con opción "Mestizo / Otra" y texto libre. | CA-06 |
+| **RF-07** | Persistencia inmediata del perfil canino y su avatar local en Drift SQLite en modo offline. | CA-07 |
+| **RF-08** | Sincronización automática de perfil y fotografía con Cloud Firestore y Firebase Storage al reconectar. | CA-08 |
+| **RF-09** | Gestión controlada y no bloqueante ante denegación o revocación de permisos de cámara/galería. | CA-09 |
+| **RF-10** | Prevención de doble pulsación y envíos duplicados durante el procesamiento del formulario. | CA-10 |
+| **RF-11** | Aislamiento y vinculación estricta de mascotas al `userId` del usuario autenticado. | CA-11 |
+| **RF-12** | Eliminación completa en cascada de mascota, registros clínicos, alarmas locales y fotos remotas/locales. | CA-12 |
+
+---
+
 ## Criterios de aceptación
 
 <!-- Cada uno se responde sí/no mirando la feature funcionando, sin interpretar.
@@ -194,12 +208,13 @@ El usuario puede dar de alta el perfil clínico de su perro ingresando su nombre
 - [ ] **CA-03 (Cálculo automático de edad a partir de fecha):** Dado un usuario en el campo de fecha de nacimiento que selecciona una fecha de hace 2 años y 3 meses, cuando confirma la fecha en el `DatePicker`, entonces el campo muestra el texto formateado "2 años y 3 meses" y no permite seleccionar fechas futuras.
 - [ ] **CA-04 (Control de peso con stepper):** Dado un peso inicial de "10.0" kg, cuando el usuario pulsa el botón `+`, entonces el valor se incrementa a "10.5" kg; y si pulsa `-` sucesivas veces, no permite decrementar a valores menores o iguales a 0 kg.
 - [ ] **CA-05 (Validación de nombre obligatorio):** Dado un formulario con el campo de nombre vacío, cuando el usuario intenta guardar, entonces se muestra el mensaje de error "El nombre de la mascota es obligatorio" bajo el campo y no se ejecuta el guardado.
-- [ ] **CA-06 (Sugerencia de razas desde catálogo estático):** Dado el campo de raza, cuando el usuario abre el selector, entonces se presentan las razas definidas en `assets/data/dogs.json` y permite seleccionar una de ellas o escribir una raza mestiza/personalizada.
+- [ ] **CA-06 (Sugerencia de razas y soporte mestizo):** Dado el selector de raza, cuando el usuario lo despliega, entonces se presentan las razas del catálogo `assets/data/dogs.json` y una opción "Mestizo / Otra" que habilita un campo de texto libre para introducir la denominación deseada.
 - [ ] **CA-07 (Persistencia offline en Drift):** Dado un dispositivo sin conexión a internet, cuando se crea un perfil de mascota con foto, entonces el registro se guarda en la base de datos Drift local con `isSynced = false`, la foto se guarda en el directorio local con `photoSynced = false` y la mascota se muestra en el Dashboard.
 - [ ] **CA-08 (Sincronización de foto y datos al reconectar):** Dado un perfil canino creado offline con foto local, cuando el dispositivo recupera la conexión a internet, entonces la app sube la foto a Firebase Storage, actualiza el documento en Cloud Firestore con la URL remota y actualiza el estado local en Drift a `isSynced = true` y `photoSynced = true`.
-- [ ] **CA-09 (Denegación de permisos sin cierre abrupto):** Dado un usuario que deniega el permiso de cámara o galería al intentar seleccionar una foto, cuando el sistema devuelve la negativa, entonces la app permanece abierta, muestra un mensaje informativo y le permite continuar el registro sin foto.
+- [ ] **CA-09 (Denegación de permisos sin cierre abrupto):** Dado un usuario que deniega el permiso de cámara o galería al intentar seleccionar una foto, cuando el sistema devuelve la negativa, entonces la app permanece abierta, muestra un mensaje informativo y le permite continuar el registro sin foto preservando los datos ya introducidos.
 - [ ] **CA-10 (Control de envíos duplicados):** Dado el botón "Guardar y Crear Perfil Canino" en estado de procesamiento, cuando el usuario pulsa repetidamente el botón, entonces el botón queda deshabilitado tras el primer toque y solo se registra una única mascota en la base de datos.
 - [ ] **CA-11 (Aislamiento estricto por usuario):** Dado un usuario con sesión iniciada con "User_A", cuando registra una mascota, entonces la mascota queda vinculada a su `userId` y no se muestra al cerrar sesión e iniciar con "User_B".
+- [ ] **CA-12 (Eliminación en cascada integral):** Dado un usuario que elimina un perfil canino, cuando confirma el borrado, entonces se cancelan sus notificaciones locales programadas en `NotificationService`, se borran sus registros dependientes en Drift (`AllergyLogsTable`, `RemindersTable`, `MedicationDoseLogsTable`, `DismissedPatternsTable`), se eliminan sus fotos físicas del almacenamiento local y se propaga la eliminación en Firestore y Firebase Storage.
 
 ---
 
@@ -215,12 +230,13 @@ El usuario puede dar de alta el perfil clínico de su perro ingresando su nombre
 - **CA-03** → Test de widget `birth_date_picker_test.dart` verificando cálculo de edad y restricción de fechas futuras.
 - **CA-04** → Test de widget `weight_stepper_test.dart` comprobando incrementos/decrementos de 0.5 kg y valor mínimo > 0.
 - **CA-05** → Test de widget `new_pet_validation_test.dart` verificando aparición del mensaje de error inline ante nombre vacío.
-- **CA-06** → Test de widget `breed_dropdown_test.dart` comprobando que las opciones renderizadas provienen de `dogs.json`.
+- **CA-06** → Test de widget `breed_dropdown_test.dart` comprobando opción "Mestizo / Otra" y campo de texto libre.
 - **CA-07** → Test instrumental en emulador con modo avión: verificar registro en SQLite Drift y presencia del archivo JPEG en `app_flutter/pets/avatars/`.
 - **CA-08** → Test de integración `pet_sync_service_test.dart` simulando evento de reconexión y comprobando subida a Firebase Storage y Cloud Firestore.
-- **CA-09** → Test de widget simulando denegación en `image_picker` y comprobando mensaje informativo.
+- **CA-09** → Test de widget simulando denegación en `image_picker` y comprobando mensaje informativo sin perder campos.
 - **CA-10** → Test de widget `save_button_debounce_test.dart` comprobando `onPressed == null` mientras `isSaving == true`.
 - **CA-11** → Test unitario `pet_repository_isolation_test.dart` comprobando que las consultas por `userId` filtran adecuadamente.
+- **CA-12** → Test de integración `delete_pet_cascade_test.dart` verificando cancelación de alarmas en mock de `NotificationService`, borrado en tablas Drift y eliminación de archivos físicos.
 
 ---
 

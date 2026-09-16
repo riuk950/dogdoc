@@ -254,7 +254,12 @@ El desarrollo se fundamenta en **Clean Architecture** con flujo unidireccional d
     playSound: true,
   );
   ```
-- Conversión de identificadores UUID (`String`) a `int` hash determinista mediante `id.hashCode.abs() % 2147483647` para cumplir con el requisito numérico de `flutter_local_notifications`.
+- Conversión determinista de UUIDs (`String`) a `int` de 32 bits con signo para `flutter_local_notifications` (CA-11):
+  - Alarmas recurrentes semanales/diarias por día de la semana: `int id = ((reminder.id.hashCode ^ dayOfWeek) & 0x7FFFFFFF)`.
+  - Alarmas puntuales o snooze (+15 min): `int id = ((reminder.id.hashCode ^ (scheduledAt.millisecondsSinceEpoch ~/ 1000)) & 0x7FFFFFFF)`.
+  Esto garantiza que recordatorios concurrentes para distintas mascotas o días no colisionen en el gestor de alarmas del SO.
+- Manejo de exact alarms y optimización de batería (CA-12):
+  - En Android 12+, se verifica `canScheduleExactAlarms()` antes de programar con exactitud; en caso negativo o si el fabricante restringe alarmas, se usa fallback inexacto y se expone advertencia contextual.
 - Configuración del listener `onDidReceiveNotificationResponse` que reenvía el payload (formato `{"type":"symptomLog","petId":"..."}` o `{"type":"medication","reminderId":"..."}`) a través de un `StreamController<String>.broadcast()`.
 
 #### Configuración Nativa en Android (`AndroidManifest.xml`):

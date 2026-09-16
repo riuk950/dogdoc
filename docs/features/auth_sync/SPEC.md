@@ -30,23 +30,17 @@
 
 ## Qué construimos
 
-<!-- Una frase. Qué puede hacer el usuario que antes no podía.
-     Si necesitas dos frases, probablemente son dos features. -->
-
-El usuario debe registrarse o iniciar sesión con email y contraseña mediante Firebase Auth (Auth Gate obligatorio) para acceder a la app, consultar un catálogo base de razas caninas desde un JSON estático y gestionar sus propias mascotas con persistencia local en Drift y sincronización remota bidireccional con Cloud Firestore para que sus datos no se pierdan entre dispositivos.
+El usuario debe registrarse o iniciar sesión con email y contraseña mediante Firebase Auth (Auth Gate obligatorio en el primer acceso que requiere conexión a internet, tras el cual la sesión se persiste localmente para operar de forma 100% offline) para acceder a la aplicación, garantizando el aislamiento estricto de datos por `userId` en la base de datos local Drift SQLite y la sincronización segura con Cloud Firestore.
 
 ---
 
 ## Fuera de alcance
 
-<!-- Va casi al principio a propósito: es lo que evita que el agente se invente
-     trabajo a mitad de camino. Si lo dejas vacío, llenará el vacío por su
-     cuenta y te enterarás en la review. -->
-
-- Modo invitado o uso de la aplicación sin iniciar sesión previa (el acceso requiere cuenta obligatoria).
+- Modo invitado o uso de la aplicación sin iniciar sesión previa (el primer acceso requiere cuenta obligatoria con conexión).
 - Autenticación con redes sociales de terceros (Google Sign-In, Apple ID, Facebook).
 - Recuperación de contraseña por SMS o autenticación biométrica (FaceID / Fingerprint).
 - Gestión multi-usuario compartida (varios usuarios editando una misma mascota en simultáneo).
+- Creación, edición y fotos de perfiles caninos (delegadas exclusivamente a la feature `pet_profiles`).
 - Resolución compleja de conflictos en tiempo real (three-way merge); se aplica la regla determinista *Last-Write-Wins* mediante la marca de tiempo `updatedAt`.
 - Modificación o borrado de elementos del catálogo estático de razas (es de solo lectura).
 
@@ -159,6 +153,27 @@ El usuario debe registrarse o iniciar sesión con email y contraseña mediante F
 
 ---
 
+## Requisitos Funcionales
+
+| Requisito | Descripción | Criterio de Aceptación Asociado |
+|---|---|---|
+| **RF-01** | Redirección obligatoria a pantalla de autenticación si no existe sesión activa persistida. | CA-01 |
+| **RF-02** | Registro de nuevos usuarios mediante correo electrónico y contraseña en Firebase Auth. | CA-02 |
+| **RF-03** | Detección y notificación amigable ante intentos de registro con correos ya existentes. | CA-03 |
+| **RF-04** | Inicio de sesión de usuarios existentes mediante credenciales válidas. | CA-04 |
+| **RF-05** | Gestión de errores tipados ante credenciales incorrectas en login. | CA-05 |
+| **RF-06** | Validación sintáctica local en formularios antes de invocar la red. | CA-06 |
+| **RF-07** | Control de concurrencia y debounce en botones de autenticación. | CA-07 |
+| **RF-08** | Carga y consumo del catálogo estático de razas desde `assets/data/dogs.json`. | CA-08 |
+| **RF-09** | Aislamiento y filtrado estricto de datos en Drift SQLite por `userId = currentUserId`. | CA-09 |
+| **RF-10** | Persistencia local de datos de sesión en Drift SQLite con soporte offline. | CA-10 |
+| **RF-11** | Sincronización automática con Cloud Firestore al restablecer la conectividad. | CA-11 |
+| **RF-12** | Descarga e hidratación de datos del usuario al iniciar sesión en un nuevo dispositivo. | CA-12 |
+| **RF-13** | Conservación de sesión activa tras reinicios o cierre del proceso del sistema. | CA-13 |
+| **RF-14** | Cierre de sesión seguro con invalidación de sesión, cancelación de alarmas y purga de caché. | CA-14 |
+
+---
+
 ## Criterios de aceptación
 
 <!-- Cada uno se responde sí/no mirando la feature funcionando, sin interpretar.
@@ -173,12 +188,12 @@ El usuario debe registrarse o iniciar sesión con email y contraseña mediante F
 - [ ] **CA-06 (Validación local de formulario):** Dado un formulario de login con un email sin formato `@` o contraseña vacía, cuando se intenta enviar, entonces se muestran los mensajes de error bajo los campos y no se realiza ninguna petición a la API de Firebase.
 - [ ] **CA-07 (Prevención de doble pulsación):** Dado un formulario de autenticación en proceso de envío, cuando el usuario pulsa repetidamente el botón de acción, entonces el botón queda inactivo y se ejecuta únicamente una petición de red.
 - [ ] **CA-08 (Lectura del catálogo estático JSON):** Dado un usuario en el formulario de registro de mascota, cuando consulta el selector de razas, entonces se muestran los datos leídos de `assets/data/dogs.json` sin requerir conexión a internet.
-- [ ] **CA-09 (Convivencia de datos y filtro por usuario):** Dado un usuario con mascotas creadas, cuando consulta su listado de perros, entonces se muestran únicamente los perros guardados en Drift que coinciden con su `userId` activo, diferenciados del catálogo estático de razas.
-- [ ] **CA-10 (Creación offline y persistencia en Drift):** Dado un usuario autenticado sin conexión a internet, cuando registra una nueva mascota, entonces la mascota se almacena de inmediato en Drift con `isSynced = false` y aparece visible en el Dashboard.
-- [ ] **CA-11 (Sincronización automática al reconectar):** Dado un usuario con mascotas registradas en modo offline (`isSynced = false`), cuando el dispositivo recupera la conexión a internet, entonces la app sube los registros a Cloud Firestore en segundo plano y actualiza su estado local en Drift a `isSynced = true`.
-- [ ] **CA-12 (Sincronización multi-dispositivo):** Dado un usuario que inicia sesión en un segundo dispositivo con la misma cuenta de Firebase, cuando se completa el login, entonces la app descarga desde Firestore las mascotas asociadas a su `userId` y las persiste en la base de datos Drift local del nuevo dispositivo.
+- [ ] **CA-09 (Convivencia de datos y filtro estricto por usuario):** Dado un usuario con sesión activa en un dispositivo compartido, cuando consulta sus datos, entonces todas las consultas a Drift SQLite filtran obligatoriamente por `userId = currentUserId`, garantizando que jamás se expongan registros de sesiones anteriores.
+- [ ] **CA-10 (Creación offline y persistencia en Drift):** Dado un usuario autenticado sin conexión a internet, cuando realiza mutaciones, entonces los datos se almacenan de inmediato en Drift con `isSynced = false`.
+- [ ] **CA-11 (Sincronización automática al reconectar):** Dado un usuario con datos locales en Drift (`isSynced = false`), cuando el dispositivo recupera la conexión a internet, entonces la app sube los registros a Cloud Firestore en segundo plano y actualiza su estado local en Drift a `isSynced = true`.
+- [ ] **CA-12 (Sincronización multi-dispositivo):** Dado un usuario que inicia sesión en un segundo dispositivo con la misma cuenta de Firebase, cuando se completa el login, entonces la app descarga desde Firestore sus datos asociados y los persiste en la base de datos Drift local del nuevo dispositivo.
 - [ ] **CA-13 (Persistencia de sesión entre reinicios):** Dado un usuario con sesión activa, cuando se cierra y reabre la app (incluso sin conexión), entonces se mantiene la sesión activa y se ingresa directamente al Dashboard sin solicitar login.
-- [ ] **CA-14 (Cierre de sesión seguro):** Dado un usuario autenticado, cuando pulsa "Cerrar Sesión", entonces se destruye la sesión en Firebase Auth, se limpian los estados en memoria y se redirige a la pantalla de Login.
+- [ ] **CA-14 (Cierre de sesión seguro y purga de caché):** Dado un usuario autenticado, cuando pulsa "Cerrar Sesión", entonces se destruye la sesión en Firebase Auth, se cancelan las notificaciones locales programadas en el sistema operativo, se purga la caché de imágenes locales temporales y se redirige a `LoginScreen`.
 
 ---
 

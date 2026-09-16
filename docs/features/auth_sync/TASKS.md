@@ -33,11 +33,11 @@
 ---
 
 ### [ ] TASK-02: Creación del catálogo base en `assets/data/dogs.json`
-- **Objetivo:** Proveer el catálogo inicial de razas caninas de solo lectura con información dermatológica y alergias comunes.
-- **Alcance:** Crear `assets/data/dogs.json` con al menos 5 razas representativas (Golden Retriever, Bulldog Francés, Poodle, Pastor Alemán, Yorkshire Terrier).
+- **Objetivo:** Proveer el catálogo inicial de razas caninas de solo lectura con información dermatológica y alergias comunes según la estructura canónica.
+- **Alcance:** Crear `assets/data/dogs.json` con al menos 5 razas representativas (Golden Retriever, Bulldog Francés, Poodle, Pastor Alemán, Yorkshire Terrier) conteniendo los campos canónicos: `id` (string), `name` (string), `commonAllergies` (List<String>), `averageWeightRangeKg` (`{min: double, max: double}`) y `skinType` (string).
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-08.
-- **Método de validación:** Test unitario que lee el asset y comprueba el parseo de la lista de razas.
+- **Criterios resueltos:** CA-08 (RF-08).
+- **Método de validación:** Test unitario que lee el asset y comprueba el parseo estricto del modelo `BreedCatalogItem`.
 
 ---
 

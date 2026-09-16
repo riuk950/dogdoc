@@ -73,26 +73,28 @@
 - **Objetivo:** Implementar el algoritmo determinista local que evalúa las 4 reglas clínicas en memoria ($< 5$ ms).
 - **Alcance:**
   - `lib/data/datasources/local/pattern_detection_engine.dart`:
+    - Preprocesamiento: exclusión de registros eliminados (`deletedAt != null`), ordenación por `dateTime ASC` y agregación por pico máximo diario (`max(itchLevel)`).
     - `evaluate(List<AllergyLog> logs, List<MedicationDoseLog> doses)`.
-    - Regla 1 (Brote sostenido): Media $\ge 3.5$ en últimos 3 logs o 2 logs seguidos $\ge 4.0$. Requiere $\ge 3$ logs para evitar falsos positivos.
-    - Regla 2 (Subida brusca): Salto $\ge +2.0$ puntos en $\le 48$h.
+    - Regla 1 (Brote sostenido): Media $\ge 3.5$ en últimos 3 días con registro o 2 días seguidos $\ge 4.0$. Requiere $\ge 3$ días con datos para evitar falsos positivos.
+    - Regla 2 (Subida brusca): Salto $\ge +2.0$ puntos en picos diarios en $\le 48$h.
     - Regla 3 (Correlación): Factor presente en $\ge 60\%$ de picos $\ge 3.5$.
     - Regla 4 (Eficacia terapéutica): Descenso $\ge 1.5$ sostenido tras dosis.
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-01, CA-02, CA-05, CA-06.
-- **Método de validación:** Tests unitarios exhaustivos en `test/data/datasources/pattern_detection_engine_test.dart` cubriendo cada una de las 4 reglas y el caso de registros insuficientes.
+- **Criterios resueltos:** CA-01, CA-02, CA-05, CA-06, CA-09.
+- **Método de validación:** Tests unitarios exhaustivos en `test/data/datasources/pattern_detection_engine_test.dart` cubriendo cada una de las 4 reglas, registros insuficientes, días con múltiples registros y ordenación cronológica.
 
 ---
 
 ### [ ] TASK-06: Implementación de `PatternRepositoryImpl`
-- **Objetivo:** Conectar el motor de detección con las consultas Drift a `AllergyLogsTable` y `DismissedPatternsTable`.
+- **Objetivo:** Conectar el motor de detección con las consultas Drift reactivas a `AllergyLogsTable` y `DismissedPatternsTable`.
 - **Alcance:**
   - `lib/data/repositories/pattern_repository_impl.dart`.
-  - Recupera los logs de los últimos 30 días de la mascota y alimenta a `PatternDetectionEngine`.
+  - Recupera los logs de los últimos 30 días de la mascota excluyendo registros borrados (`deletedAt != null`) y alimenta a `PatternDetectionEngine`.
   - Cruza los resultados con `DismissedPatternsTable` para marcar `isDismissed = true` cuando corresponda.
+  - Asegura reactividad inmediata ante inserción, edición o soft-delete en `AllergyLogsTable`.
 - **Dependencias:** TASK-02, TASK-04, TASK-05.
-- **Criterios resueltos:** CA-01, CA-03, CA-04, CA-07.
-- **Método de validación:** Test de repositorio in-memory verificando la reactividad con `watchActivePatterns`.
+- **Criterios resueltos:** CA-01, CA-03, CA-04, CA-07, CA-08.
+- **Método de validación:** Test de repositorio in-memory verificando la reactividad con `watchActivePatterns` al modificar o eliminar registros.
 
 ---
 
@@ -153,7 +155,7 @@
   - Tests de no-regresión de persistencia de descarte de alertas.
   - Cobertura completa con `flutter test`.
 - **Dependencias:** TASK-01 a TASK-10.
-- **Criterios resueltos:** CA-01 a CA-07.
+- **Criterios resueltos:** CA-01 a CA-09.
 - **Método de validación:** Ejecución exitosa al 100% de `flutter test`.
 
 ---
@@ -164,5 +166,5 @@
   - Ejecutar `flutter analyze` con cero errores.
   - Actualizar los checkboxes de progreso en este archivo `TASKS.md`.
 - **Dependencias:** TASK-11.
-- **Criterios resueltos:** Cumplimiento de estándares de calidad.
+- **Criterios resueltos:** CA-01 a CA-09 (Cumplimiento de estándares de calidad).
 - **Método de validación:** Salida limpia de `flutter analyze`.

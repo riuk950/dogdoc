@@ -34,50 +34,53 @@
 ---
 
 ### [ ] TASK-02: Contrato del repositorio y casos de uso
-- **Objetivo:** Definir las operaciones de negocio para registrar y consultar entradas de alergias.
+- **Objetivo:** Definir las operaciones de negocio para registrar, actualizar, soft-deletear y consultar entradas de alergias.
 - **Alcance:**
   - Crear `lib/domain/repository_contract/allergy_log_repository.dart`.
-  - Crear `lib/domain/usecases/allergy_diary/create_allergy_log_use_case.dart` (valida `itchLevel` entre 1 y 5, `petId` no vacío, genera UUID v4 y asigna `dateTime.now()`).
-  - Crear `lib/domain/usecases/allergy_diary/get_allergy_logs_by_pet_use_case.dart`.
+  - Crear `lib/domain/usecases/allergy_diary/create_allergy_log_use_case.dart` (valida `itchLevel` entre 1 y 5, `petId` no vacío, valida bloqueo de fechas futuras `dateTime <= DateTime.now()`, genera UUID v4).
+  - Crear `lib/domain/usecases/allergy_diary/update_allergy_log_use_case.dart` y `delete_allergy_log_use_case.dart` (marca `deletedAt = DateTime.now()` y `isSynced = false`).
+  - Crear `lib/domain/usecases/allergy_diary/get_allergy_logs_by_pet_use_case.dart` (filtra `deletedAt == null`).
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-01, CA-02, CA-05.
-- **Método de validación:** Test unitario `test/domain/usecases/create_allergy_log_use_case_test.dart` verificando validaciones clínicas y fechas.
+- **Criterios resueltos:** CA-01, CA-02, CA-05, CA-12, CA-13.
+- **Método de validación:** Test unitario `test/domain/usecases/create_allergy_log_use_case_test.dart` verificando validaciones clínicas, rechazo de fechas futuras y soft-delete.
 
 ---
 
 ## Fase 2: Capa de Datos y Persistencia (Drift + Firebase)
 
 ### [ ] TASK-03: Tabla `AllergyLogsTable` en Drift y generación de código
-- **Objetivo:** Implementar la tabla relacional en SQLite con TypeConverters para serializar listas de cadenas en formato JSON.
+- **Objetivo:** Implementar la tabla relacional en SQLite con TypeConverters para serializar listas de cadenas en formato JSON y columna `deletedAt` para soft-delete.
 - **Alcance:**
-  - Crear `lib/data/local_datasource/drift/tables/allergy_logs_table.dart`.
+  - Crear `lib/data/local_datasource/drift/tables/allergy_logs_table.dart` incluyendo `deletedAt` nullable.
   - Registrar tabla en `lib/data/local_datasource/drift/app_database.dart`.
   - Ejecutar `dart run build_runner build --delete-conflicting-outputs`.
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-05, CA-07, CA-11.
-- **Método de validación:** Test de base de datos en memoria insertando y leyendo un registro con zonas y desencadenantes.
+- **Criterios resueltos:** CA-05, CA-07, CA-11, CA-12.
+- **Método de validación:** Test de base de datos en memoria insertando, leyendo y soft-deleteando un registro con zonas y desencadenantes.
 
 ---
 
 ### [ ] TASK-04: Almacenamiento local de fotografías de lesiones
-- **Objetivo:** Guardar las imágenes capturadas de lesiones dérmicas en el directorio seguro de la app.
+- **Objetivo:** Guardar las imágenes capturadas de lesiones dérmicas en el directorio seguro de la app y manejar fallbacks si se borran de disco.
 - **Alcance:**
   - Extender `lib/data/local_datasource/storage/file_storage_service.dart` con método `saveLesionPhoto(String tempPath, String petId, String logId)`.
   - Guardado en `{appDocDir}/pets/{petId}/logs/{logId}.jpg`.
+  - Implementar placeholder seguro si el archivo local físico no se encuentra.
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-06.
-- **Método de validación:** Test unitario `test/data/storage/lesion_photo_storage_test.dart` verificando creación del archivo.
+- **Criterios resueltos:** CA-06, CA-13.
+- **Método de validación:** Test unitario `test/data/storage/lesion_photo_storage_test.dart` verificando creación del archivo y retorno de fallback ante ruta borrada.
 
 ---
 
 ### [ ] TASK-05: Implementación de `AllergyLogRepositoryImpl`
-- **Objetivo:** Gestionar la persistencia local en Drift (`isSynced = false`) y coordinar el encolado de sincronización hacia Firestore y Storage.
+- **Objetivo:** Gestionar la persistencia local en Drift (`isSynced = false`), actualizaciones, soft-delete y coordinar el encolado de sincronización hacia Firestore y Storage.
 - **Alcance:**
   - Crear `lib/data/repository_impl/allergy_log_repository_impl.dart`.
-  - Filtro estricto por `petId` y `userId`.
+  - Filtro estricto por `petId` y `userId`, excluyendo registros con `deletedAt != null` salvo sincronización.
+  - Métodos `updateLog` y `deleteLog` (soft-delete).
 - **Dependencias:** TASK-03, TASK-04.
-- **Criterios resueltos:** CA-07, CA-08, CA-09, CA-11.
-- **Método de validación:** Test unitario `test/data/repositories/allergy_log_repository_impl_test.dart` verificando aislamiento entre mascotas.
+- **Criterios resueltos:** CA-07, CA-08, CA-09, CA-11, CA-12.
+- **Método de validación:** Test unitario `test/data/repositories/allergy_log_repository_impl_test.dart` verificando aislamiento entre mascotas y comportamiento de soft-delete.
 
 ---
 
@@ -156,12 +159,12 @@
 ---
 
 ### [ ] TASK-12: Ejecución de la suite completa de pruebas
-- **Objetivo:** Garantizar 0 advertencias estáticas y 100% de tests en verde cubriendo los criterios `CA-01` a `CA-11`.
+- **Objetivo:** Garantizar 0 advertencias estáticas y 100% de tests en verde cubriendo los criterios `CA-01` a `CA-13`.
 - **Alcance:**
   - Ejecutar `flutter analyze`.
   - Ejecutar `flutter test`.
 - **Dependencias:** TASK-01 a TASK-11.
-- **Criterios resueltos:** Todos (CA-01 a CA-11).
+- **Criterios resueltos:** Todos (CA-01 a CA-13).
 - **Método de validación:** Reportes exitosos de análisis estático y ejecución de pruebas.
 
 ---

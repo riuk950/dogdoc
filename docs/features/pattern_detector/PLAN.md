@@ -151,13 +151,17 @@ class DismissedPatternsTable extends Table {
 ```
 
 #### Motor Determinista de Detección (`lib/data/datasources/local/pattern_detection_engine.dart`):
+- **Preprocesamiento:**
+  - Exclusión de registros con soft-delete (`deletedAt != null`).
+  - Ordenación cronológica estricta por `dateTime ASC` (fecha y hora clínica).
+  - Agrupación por día calendario local tomando el **pico máximo diario** (`max(itchLevel)`) para asegurar que entradas múltiples no distorsionen la gravedad clínica.
 1. **Regla 1: Picor Alto Sostenido (Brote):**
-   - Toma los últimos 3 registros ordenados por fecha en los últimos 7 días.
-   - Si la cantidad de registros $< 3$, no se dispara esta regla para prevenir falsos positivos.
-   - Si la media aritmética $\ge 3.5$ o los últimos 2 registros consecutivos tienen $\ge 4.0$:
+   - Toma los últimos 3 días con registro dentro de la ventana de los últimos 7 días.
+   - Si la cantidad de días evaluados $< 3$, no se dispara esta regla para prevenir falsos positivos.
+   - Si la media aritmética de los picos diarios es $\ge 3.5$ o los últimos 2 días consecutivos tienen un pico $\ge 4.0$:
      - Genera `ClinicalPattern` tipo `sustainedHighItch`, severidad `critical`.
 2. **Regla 2: Subida Brusca (Crisis Aguda):**
-   - Toma los dos registros más recientes. Si la diferencia temporal es $\le 48$ horas y `itch_actual - itch_anterior >= 2.0`:
+   - Toma el pico del día más reciente y el pico del día registrado inmediatamente anterior. Si el intervalo temporal entre ambos es $\le 48$ horas y `pico_actual - pico_anterior >= 2.0`:
      - Genera `ClinicalPattern` tipo `suddenSpike`, severidad `warning`.
 3. **Regla 3: Correlación con Desencadenantes:**
    - Filtra registros de los últimos 30 días con picor $\ge 3.5$.

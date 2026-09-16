@@ -30,8 +30,9 @@
   - `lib/domain/model/kpi_metrics.dart` (`averagePruritus`, `previousPeriodPercentageDiff`, `calmDaysCount`, `totalDaysCount`, `treatmentAdherencePercentage`).
   - `lib/domain/model/body_zone_frequency.dart` (`zoneName`, `count`, `percentage`).
   - `lib/domain/model/analytics_data.dart` (entidad agregada para la vista).
+  - Constantes de umbrales clínicos PVAS: Calma ($\le 2.0$), Moderado ($2.1\text{--}3.4$), Brote ($\ge 3.5$).
 - **Dependencias:** Ninguna.
-- **Criterios resueltos:** CA-01, CA-02, CA-03, CA-05.
+- **Criterios resueltos:** CA-01, CA-02, CA-03, CA-05, CA-09, CA-10.
 - **Método de validación:** Tests unitarios de modelos validando inmutabilidad, fábricas de rango temporal y formateo en `test/domain/model/analytics_models_test.dart`.
 
 ---
@@ -41,19 +42,21 @@
 - **Alcance:**
   - `lib/domain/repository/analytics_repository.dart` (`getAnalyticsForPet`, `watchAnalyticsForPet`).
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** Base para CA-01 a CA-08.
+- **Criterios resueltos:** Base para CA-01 a CA-10.
 - **Método de validación:** Verificación de compilación estricta de la interfaz abstracta.
 
 ---
 
 ### [ ] TASK-03: Caso de uso `GetPetAnalyticsUseCase`
-- **Objetivo:** Implementar la lógica de negocio para coordinar la obtención de registros, cálculo de medias, días en calma y tasa de cambio porcentual.
+- **Objetivo:** Implementar la lógica de negocio para coordinar la obtención de registros, agregación temporal diferenciada, cálculo de medias, días en calma y tasa de cambio porcentual.
 - **Alcance:**
   - `lib/domain/usecases/analytics/get_pet_analytics_usecase.dart`.
+  - Agregación por pico máximo diario en 30d/3m vs puntos discretos con hora en 7d.
+  - Clasificación de días en calma con umbral normalizado $\le 2.0$.
   - Algoritmo de comparación con el período anterior ($((Media_{act} - Media_{ant}) / Media_{ant}) \times 100$).
   - Filtrado y ordenamiento de frecuencias de zonas corporales.
 - **Dependencias:** TASK-02.
-- **Criterios resueltos:** CA-02, CA-03, CA-05.
+- **Criterios resueltos:** CA-02, CA-03, CA-05, CA-09, CA-10.
 - **Método de validación:** Test unitario en `test/domain/usecases/analytics/get_pet_analytics_usecase_test.dart` con mock de repositorio verificando precisión de cálculos.
 
 ---
@@ -75,9 +78,10 @@
 - **Alcance:**
   - `lib/data/repositories/analytics_repository_impl.dart`.
   - Consultas filtradas por rango temporal `date_time BETWEEN ? AND ?` y ordenadas ascendentemente.
+  - Lógica de agregación: puntos individuales en 7d vs agregación por pico máximo diario (`max(itchLevel)`) en 30d y 3m.
   - Generación reactiva mediante Streams (`watchAnalyticsForPet`).
 - **Dependencias:** TASK-01, TASK-02, TASK-04.
-- **Criterios resueltos:** CA-01, CA-02, CA-07, CA-08.
+- **Criterios resueltos:** CA-01, CA-02, CA-07, CA-08, CA-09.
 - **Método de validación:** Test de repositorio in-memory con Drift SQLite en `test/data/repositories/analytics_repository_impl_test.dart`.
 
 ---
@@ -103,7 +107,7 @@
   - `lib/presentation/features/analytics/widgets/time_range_segmented_selector.dart` (píldoras "7 Días", "30 Días", "3 Meses").
   - `lib/presentation/features/analytics/widgets/kpi_metrics_grid.dart` (3 tarjetas: Prurito medio con diff %, Días sin brote, Adherencia de tomas).
 - **Dependencias:** TASK-06.
-- **Criterios resueltos:** CA-02, CA-03.
+- **Criterios resueltos:** CA-02, CA-03, CA-10.
 - **Método de validación:** Tests de widgets verificando renderizado de valores formateados y cambio de pestaña al pulsar.
 
 ---
@@ -113,12 +117,13 @@
 - **Alcance:**
   - `lib/presentation/features/analytics/widgets/pruritus_evolution_chart.dart`.
   - Curva suave Bézier (`isCurved: true`) con degradado vertical `#006750` (opacidad 0.32 a 0.0).
-  - Líneas de severidad clínica horizontales Nvl 1 a Nvl 4.
+  - Líneas de severidad clínica horizontales normalizadas (Calma $\le 2.0$, Moderado $2.1\text{--}3.4$, Brote $\ge 3.5$).
+  - Renderizado adaptado: puntos discretos con hora para 7d vs pico diario condensado para 30d/3m.
   - Detección de brechas $> 4$ días y trazado punteado.
   - Marcadores de hitos con iconos (`🥗`, `🌧️`, `💊`).
   - Tooltip táctil interactivo con botón *"Ver registro completo"*.
 - **Dependencias:** TASK-04, TASK-06.
-- **Criterios resueltos:** CA-01, CA-04, CA-05.
+- **Criterios resueltos:** CA-01, CA-04, CA-05, CA-09, CA-10.
 - **Método de validación:** Test de widget comprobando la configuración de `LineChartData` e interacción táctil.
 
 ---
@@ -154,7 +159,7 @@
   - Ejecutar tests unitarios, de repositorio, de BLoC y de widget.
   - Validar casos extremos: exactamente 0 registros, 1 solo registro, todos los registros con el mismo nivel de picor, etc.
 - **Dependencias:** TASK-01 a TASK-10.
-- **Criterios resueltos:** CA-01 a CA-08.
+- **Criterios resueltos:** CA-01 a CA-10.
 - **Método de validación:** Salida 100% exitosa de la suite `flutter test`.
 
 ---
@@ -165,5 +170,5 @@
   - Ejecutar `flutter analyze`.
   - Actualizar los checkboxes de progreso en este archivo `TASKS.md`.
 - **Dependencias:** TASK-11.
-- **Criterios resueltos:** Cumplimiento de estándares de calidad.
+- **Criterios resueltos:** CA-01 a CA-10 (Cumplimiento de estándares de calidad).
 - **Método de validación:** `flutter analyze` finalizado con 0 issues.

@@ -86,13 +86,14 @@
 ---
 
 ### [ ] TASK-07: Actualización de `PetRepositoryImpl`
-- **Objetivo:** Coordinar la inserción en Drift, guardado de la foto local y disparo asíncrono de la sincronización remota.
+- **Objetivo:** Coordinar la inserción en Drift, guardado de la foto local, disparo asíncrono de la sincronización remota y eliminación en cascada.
 - **Alcance:**
   - Actualizar `lib/data/repository_impl/pet_repository_impl.dart`.
   - Aislar registros por `userId`.
+  - Implementar método `deletePet(String petId)` con borrado en cascada: purga de registros clínicos en Drift, cancelación de alarmas en `NotificationService` y eliminación de fotos locales y remotas.
 - **Dependencias:** TASK-04, TASK-05, TASK-06.
-- **Criterios resueltos:** CA-01, CA-07, CA-08, CA-11.
-- **Método de validación:** Test unitario `test/data/repositories/pet_repository_impl_test.dart` comprobando aislamiento y marcado `isSynced = false`.
+- **Criterios resueltos:** CA-01, CA-07, CA-08, CA-11, CA-12.
+- **Método de validación:** Test unitario `test/data/repositories/pet_repository_impl_test.dart` comprobando inserción, aislamiento y borrado en cascada.
 
 ---
 
@@ -158,13 +159,13 @@
 ---
 
 ### [ ] TASK-13: Ejecución de suite de pruebas integral
-- **Objetivo:** Asegurar que todo el código cumple los criterios `CA-01` a `CA-11` con 0 errores de análisis.
+- **Objetivo:** Asegurar que todo el código cumple los criterios `CA-01` a `CA-12` con 0 errores de análisis.
 - **Alcance:**
   - Ejecutar `flutter analyze`.
   - Ejecutar `flutter test`.
 - **Dependencias:** TASK-01 a TASK-12.
-- **Criterios resueltos:** Todos (CA-01 a CA-11).
-- **Método de validación:** Reporte de salida en verde de análisis estático y pruebas.
+- **Criterios resueltos:** CA-01 a CA-12.
+- **Método de validación:** Cobertura de tests unitarios y 0 errores en análisis estático y pruebas.
 
 ---
 

@@ -60,13 +60,15 @@
 ---
 
 ### [ ] TASK-04: Implementación de reconciliación *Last-Write-Wins* en `RealtimeSyncRepositoryImpl`
-- **Objetivo:** Comparar las marcas temporales `updatedAt` de Firestore contra Drift y persistir las novedades en SQLite local.
+- **Objetivo:** Comparar las marcas temporales `updatedAt` de Firestore contra Drift, sincronizar eliminaciones (`deletedAt`), cancelar listeners en cierre de sesión y persistir las novedades en SQLite local.
 - **Alcance:**
   - Crear `lib/data/repository_impl/realtime_sync_repository_impl.dart`.
   - Aplicar regla *Last-Write-Wins* e insertar en Drift con `isSynced = true`.
+  - Replicar soft-deletes (`deletedAt != null`) bidireccionalmente.
+  - Implementar método `dispose()` / `cancelSubscriptions()` para cancelar listeners de Firestore al cerrar sesión y purgar la caché sensible.
 - **Dependencias:** TASK-01, TASK-03.
-- **Criterios resueltos:** CA-02, CA-06, CA-09.
-- **Método de validación:** Test unitario `test/domain/sync/conflict_resolution_test.dart` verificando resolución ante marcas de tiempo en colisión.
+- **Criterios resueltos:** CA-02, CA-06, CA-09, CA-11, CA-12.
+- **Método de validación:** Test unitario `test/domain/sync/conflict_resolution_test.dart` verificando resolución ante colisiones y propagación de soft-deletes.
 
 ---
 
@@ -107,22 +109,22 @@
 ## Fase 4: Integración, Pruebas y Validación Final
 
 ### [ ] TASK-08: Test de integración de sincronización y reconexión
-- **Objetivo:** Validar la subida automática inmediata cuando hay red y la reanudación tras modo avión.
+- **Objetivo:** Validar la subida automática inmediata cuando hay red, la sincronización de soft-deletes y la reanudación tras modo avión.
 - **Alcance:**
   - Crear `test/data/sync/realtime_push_sync_test.dart`.
 - **Dependencias:** TASK-04, TASK-07.
-- **Criterios resueltos:** CA-03.
-- **Método de validación:** Ejecución del test de integración simulando evento de conectividad.
+- **Criterios resueltos:** CA-03, CA-11.
+- **Método de validación:** Ejecución del test de integración simulando evento de conectividad y replicación de soft-deletes.
 
 ---
 
 ### [ ] TASK-09: Ejecución de suite de pruebas integral
-- **Objetivo:** Asegurar 0 advertencias de análisis estático y 100% de tests en verde cubriendo los criterios `CA-01` a `CA-10`.
+- **Objetivo:** Asegurar 0 advertencias de análisis estático y 100% de tests en verde cubriendo los criterios `CA-01` a `CA-12`.
 - **Alcance:**
   - Ejecutar `flutter analyze`.
   - Ejecutar `flutter test`.
 - **Dependencias:** TASK-01 a TASK-08.
-- **Criterios resueltos:** Todos (CA-01 a CA-10).
+- **Criterios resueltos:** Todos (CA-01 a CA-12).
 - **Método de validación:** Reportes exitosos de análisis estático y suite de pruebas.
 
 ---

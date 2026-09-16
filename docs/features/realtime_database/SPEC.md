@@ -151,6 +151,25 @@ El usuario dispone de sincronización en tiempo real mediante Cloud Firestore pa
 
 ---
 
+## Requisitos Funcionales
+
+| Requisito | Descripción | Criterio de Aceptación Asociado |
+|---|---|---|
+| **RF-01** | Sincronización reactiva bidireccional en tiempo real entre múltiples dispositivos. | CA-01 |
+| **RF-02** | Lectura offline inmediata desde Drift SQLite como SSOT local ($< 100$ ms). | CA-02 |
+| **RF-03** | Subida inmediata a Cloud Firestore de registros mutados localmente al disponer de red. | CA-03 |
+| **RF-04** | Pausa automática de suscripciones a Firestore al pasar la app a segundo plano. | CA-04 |
+| **RF-05** | Reanudación automática de suscripciones al volver la aplicación a primer plano. | CA-05 |
+| **RF-06** | Resolución determinista de conflictos mediante política *Last-Write-Wins* con `updatedAt`. | CA-06 |
+| **RF-07** | Aislamiento de seguridad y rutas jerárquicas estrictas `/users/{uid}/pets/{petId}/...`. | CA-07 |
+| **RF-08** | Indicador visual accesible de estado de conectividad y sincronización en la UI. | CA-08 |
+| **RF-09** | Independencia total del catálogo estático de razas JSON frente al motor de sincronización. | CA-09 |
+| **RF-10** | Optimización de cuotas y memoria acotando consultas activas a los últimos 30 días/registros. | CA-10 |
+| **RF-11** | Propagación y sincronización de eliminaciones lógicas (soft-delete) en Firestore y Storage. | CA-11 |
+| **RF-12** | Cancelación de listeners en tiempo real y purga de estado local al cerrar sesión. | CA-12 |
+
+---
+
 ## Criterios de aceptación
 
 <!-- Cada uno se responde sí/no mirando la feature funcionando, sin interpretar.
@@ -167,6 +186,8 @@ El usuario dispone de sincronización en tiempo real mediante Cloud Firestore pa
 - [ ] **CA-08 (Indicador visual de estado de sincronización):** Dado el Dashboard principal, cuando la sincronización está al día se muestra el badge verde *"Sincronizado"*; cuando hay cambios subiendo o bajando se muestra *"Sincronizando..."*; y cuando no hay internet se muestra *"Modo local (sin conexión)"*.
 - [ ] **CA-09 (Independencia del catálogo estático JSON):** Dado el flujo de sincronización en tiempo real, cuando se sincronizan los síntomas, entonces las operaciones no modifican ni consultan el archivo `assets/data/dogs.json`.
 - [ ] **CA-10 (Límite de lectura y optimización a 30 días/registros):** Dado un historial extenso de síntomas, cuando se inicia la suscripción en tiempo real en el Dashboard, entonces la consulta se limita a los últimos 30 registros o registros de los últimos 30 días para evitar descargas masivas innecesarias.
+- [ ] **CA-11 (Sincronización de eliminaciones soft-delete):** Dado un registro o fotografía marcado como eliminado (`deletedAt != null`), cuando se ejecuta la sincronización, entonces se elimina el documento correspondiente en Cloud Firestore y el archivo en Firebase Storage.
+- [ ] **CA-12 (Cancelación de listeners al cerrar sesión):** Dado un usuario autenticado que pulsa "Cerrar Sesión", cuando se destruye la sesión, entonces todas las suscripciones a streams de Firestore se cancelan inmediatamente, evitando fugas de memoria o descargas no autorizadas.
 
 ---
 
@@ -187,6 +208,8 @@ El usuario dispone de sincronización en tiempo real mediante Cloud Firestore pa
 - **CA-08** → Test de widget `sync_indicator_widget_test.dart` verificando los estados visuales (`inSync`, `syncing`, `offline`).
 - **CA-09** → Test unitario comprobando que `RealtimeSyncRepository` no interactúa con `CatalogJsonDataSource`.
 - **CA-10** → Test unitario en `firestore_service_test.dart` comprobando que la query de escucha contiene el límite `.limit(30)`.
+- **CA-11** → Test de integración `delete_sync_test.dart` comprobando la propagación de soft-deletes en Firestore y Storage.
+- **CA-12** → Test de ciclo de vida `sign_out_listener_cleanup_test.dart` comprobando que `signOut` cancela todas las suscripciones activas.
 
 ---
 

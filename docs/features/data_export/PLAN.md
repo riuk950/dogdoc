@@ -176,7 +176,10 @@ El desarrollo se fundamenta en **Clean Architecture** con flujo unidireccional d
 
 #### Optimización de Memoria e Imágenes:
 - Ejecución de la generación del PDF envuelta en `compute(_generatePdfIsolate, reportData)` para aislar el consumo de CPU y prevenir caídas de frames en la UI.
-- Redimensionamiento de imágenes locales a un máximo de 1024x1024 píxeles con calidad 75% antes de incrustarlas.
+- Límite de seguridad contra desbordamiento de memoria (OOM): máximo 20 fotografías por reporte, priorizando días de brote ($\ge 3.5$) y días con notas clínicas.
+- Procesamiento en Isolate estructurado por lotes (bloques de 4 fotos por página).
+- Redimensionamiento de imágenes locales a un máximo de 1024x1024 píxeles con calidad 75% antes de incrustarlas, manteniendo el archivo $< 5$ MB.
+- Fallback no bloqueante: si una fotografía no existe o está corrupta en disco, se renderiza un contenedor de marcador de posición *"Foto no disponible"* sin cancelar la generación.
 
 ---
 

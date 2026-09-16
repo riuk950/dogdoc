@@ -57,21 +57,38 @@ Un motor local y reactivo de análisis clínico que evalúa el historial de regi
 
 ---
 
+## Requisitos Funcionales (RF)
+
+| ID | Requisito | Criterio de Aceptación |
+|---|---|---|
+| **RF-01** | Detección automática de brote activo por picor alto sostenido ($\ge 3.5$ en 3 días o $\ge 4.0$ en 2 días consecutivos). | CA-01 |
+| **RF-02** | Detección de incremento brusco en 24-48 horas ($\Delta \ge +2.0$ puntos). | CA-02 |
+| **RF-03** | Visualización contextual de banner de alerta médica en la parte superior del Dashboard. | CA-03 |
+| **RF-04** | Mecanismo de descarte temporal de alertas con persistencia local que evita spam visual. | CA-04 |
+| **RF-05** | Prevención de falsos positivos requiriendo un mínimo de 3 días evaluados en la ventana móvil. | CA-05 |
+| **RF-06** | Identificación de correlaciones estadísticas entre factores desencadenantes y brotes severos ($\ge 60\%$). | CA-06 |
+| **RF-07** | Inclusión visible y obligatoria de advertencia/descargo de responsabilidad legal veterinario. | CA-07 |
+| **RF-08** | Reactividad inmediata del motor ante edición o eliminación (soft-delete) de registros de síntomas. | CA-08 |
+| **RF-09** | Agregación matemática mediante pico diario y orden cronológico estricto por fecha clínica (`dateTime`). | CA-09 |
+
+---
+
 ## Flujos, Reglas de Negocio y Casos de Error
 
 ### Flujo 1: Evaluación y Detección Automática de Brote
-1. Cuando el usuario guarda un nuevo registro diario o abre el Dashboard / Analítica:
-2. El caso de uso `DetectClinicalPatternsUseCase` consulta los registros de los últimos 7 días para la mascota activa.
-3. Se aplican las reglas clínicas deterministas:
-   - **Regla 1 (Picor Alto Sostenido - Brote):** Si el promedio de `itchLevel` en los últimos 3 días con registro es $\ge 3.5$, O si los últimos 2 días consecutivos presentan picor $\ge 4.0$:
+1. Cuando el usuario guarda, edita o elimina un registro diario, o abre el Dashboard / Analítica:
+2. El caso de uso `DetectClinicalPatternsUseCase` consulta los registros activos (`deletedAt == null`) de los últimos 7 días para la mascota activa, ordenados estrictamente por fecha clínica `dateTime ASC`.
+3. Si en un mismo día calendario existen múltiples registros, se toma el **pico máximo diario** (`max(itchLevel)`) para representar ese día calendario, manteniendo coherencia con el Dashboard y Analítica.
+4. Se evalúan las reglas clínicas deterministas:
+   - **Regla 1 (Picor Alto Sostenido - Brote):** Si el promedio de los picos diarios en los últimos 3 días con registro dentro de los 7 días es $\ge 3.5$, O si los últimos 2 días consecutivos presentan un pico $\ge 4.0$:
      - Se genera un patrón de severidad `critical` con título: *"Alerta de Brote Activo"* y descripción *"Promedio de picor: 4.0/5 en los últimos 3 días"*.
-   - **Regla 2 (Subida Brusca - Crisis Aguda):** Si entre el registro de hoy y el anterior (en un intervalo $\le 48$h) el picor subió $\ge +2.0$ puntos:
+   - **Regla 2 (Subida Brusca - Crisis Aguda):** Si entre el pico del día más reciente y el pico del día registrado anterior (en un intervalo $\le 48$h) el picor subió $\ge +2.0$ puntos:
      - Se genera un patrón de severidad `warning` con título *"Empeoramiento Rápido"* y descripción *"Subida brusca de 2.0 a 4.0 (+100%) en 24h"*.
    - **Regla 3 (Correlación con Desencadenante):** Si una zona o alérgeno concreto (ej. "Césped", "Pienso de pollo") aparece en $\ge 60\%$ de los registros con picor $\ge 3.5$:
      - Se genera un patrón informativo *"Patrón Sospechoso: [Alérgeno]"*.
    - **Regla 4 (Respuesta Favorable):** Si tras 3 días de medicación continua o baño medicado el picor disminuye $\ge 1.5$ puntos sostenidamente:
      - Se genera un patrón positivo *"Eficacia Terapéutica Favorable"*.
-4. Si se detecta un patrón crítico o warning:
+5. Si se detecta un patrón crítico o warning:
    - En el **Dashboard**: Se despliega el banner de advertencia con color de acento `#BA1A1A` o `#9D4300`.
    - En **Analítica**: Se listan los hallazgos con detalles ampliados.
 
@@ -85,7 +102,9 @@ Un motor local y reactivo de análisis clínico que evalúa el historial de regi
 ### Casos de Error y Reglas de Negocio:
 1. **Historial Insuficiente (< 3 registros en los últimos 7 días):**
    - No se emiten falsas alertas de brote sostenido. El motor requiere un mínimo de 3 registros en la ventana temporal para calcular promedios representativos, evitando alarmismos infundados con 1 solo log aislado.
-2. **Descargo de Responsabilidad Obligatorio:**
+2. **Edición o Eliminación de Registros:**
+   - La reactividad de Drift SQLite provoca una reevaluación instantánea; si un usuario corrige o borra un registro con picor alto, cualquier alerta de brote asociada se extingue inmediatamente.
+3. **Descargo de Responsabilidad Obligatorio:**
    - Toda tarjeta o banner incluye la leyenda: *"AlergiCan no sustituye el diagnóstico veterinario. Si tu perro presenta dolor, sangrado o rascado incesante, contacta a tu clínica veterinaria."*
 
 ---
@@ -107,54 +126,67 @@ En cumplimiento con [`docs/MOBILE_GUIDELINES.md`](file:///Users/diego/FlutterPro
 
 ## Criterios de Aceptación y Validación
 
-- **CA-01: Detección de picor alto sostenido (Alerta de Brote).**
-  - *Dado* que los últimos 3 días registrados de una mascota tienen picor [4, 4, 4],
+- **CA-01: Detección de picor alto sostenido (Alerta de Brote).** (Resuelve RF-01)
+  - *Dado* que los últimos 3 días registrados de una mascota tienen picor [4.0, 4.0, 4.0],
   - *Cuando* se evalúa el motor de patrones,
   - *Entonces* se genera un `ClinicalPattern` de tipo `sustainedHighItch` y severidad `critical` con el promedio exacto ("4.0/5 en los últimos 3 días").
   - *Cómo se demuestra:* Test unitario de `DetectClinicalPatternsUseCase` con una serie temporal de picor verificando la generación del patrón esperado.
 
-- **CA-02: Detección de incremento brusco en 24-48 horas.**
+- **CA-02: Detección de incremento brusco en 24-48 horas.** (Resuelve RF-02)
   - *Dado* un registro previo de picor 2.0 y un registro posterior a las 24 horas de picor 4.5,
   - *Cuando* se evalúa el caso de uso,
   - *Entonces* se identifica un patrón de tipo `suddenSpike` con severidad `warning` indicando la subida rápida de $+2.5$ puntos.
   - *Cómo se demuestra:* Test unitario validando la detección de variaciones delta $\ge +2.0$.
 
-- **CA-03: Visualización del banner de alerta en el Dashboard.**
+- **CA-03: Visualización del banner de alerta en el Dashboard.** (Resuelve RF-03)
   - *Dado* que existe un patrón activo de brote severo no descartado,
   - *Cuando* el usuario abre el Dashboard canino,
   - *Entonces* se renderiza el widget `OutbreakAlertBanner` en la parte superior con el resumen del picor y botón de acceso a analítica.
   - *Cómo se demuestra:* Test de widget en `DashboardScreen` con mock de patrón crítico comprobando la visibilidad del banner.
 
-- **CA-04: Descarte de alerta por el usuario.**
+- **CA-04: Descarte de alerta por el usuario.** (Resuelve RF-04)
   - *Dado* el banner de alerta visible en el Dashboard,
   - *Cuando* el usuario pulsa el icono de descarte ("X"),
   - *Entonces* el banner se oculta inmediatamente y se persiste el estado descartado, sin reaparecer al reconstruir la pantalla.
   - *Cómo se demuestra:* Test de widget simulando el tap en cerrar y verificando la desaparición del banner y persistencia del flag.
 
-- **CA-05: Mínimo de datos requeridos para evitar falsos positivos.**
+- **CA-05: Mínimo de datos requeridos para evitar falsos positivos.** (Resuelve RF-05)
   - *Dado* una mascota con solo 1 o 2 registros en la última semana (incluso con valor 5),
   - *Cuando* se evalúa el patrón de brote sostenido,
   - *Entonces* no se dispara la alerta de promedio de 3 días por falta de muestra estadística mínima.
   - *Cómo se demuestra:* Test unitario con 1 registro extremo verificando que no se emite el patrón de brote sostenido de 3 días.
 
-- **CA-06: Identificación de correlaciones con factores desencadenantes.**
+- **CA-06: Identificación de correlaciones con factores desencadenantes.** (Resuelve RF-06)
   - *Dado* un histórico donde en 4 de 5 días con picor $\ge 4$ se registró el alérgeno "Césped",
   - *Cuando* se ejecuta el detector de correlaciones,
   - *Entonces* se genera un hallazgo destacando que el $80\%$ de los episodios coinciden con dicho factor.
   - *Cómo se demuestra:* Test unitario de correlación de factores desencadenantes.
 
-- **CA-07: Inclusión obligatoria de disclaimer veterinario.**
+- **CA-07: Inclusión obligatoria de disclaimer veterinario.** (Resuelve RF-07)
   - *Dado* cualquier patrón o resumen de síntomas altos mostrado en la app,
   - *Cuando* se visualiza en la interfaz,
   - *Entonces* se muestra visiblemente el texto de descargo de responsabilidad veterinario.
   - *Cómo se demuestra:* Test de widget comprobando la presencia del texto de disclaimer en `OutbreakAlertBanner` y `ClinicalFindingsCard`.
 
+- **CA-08: Reactividad inmediata ante edición o soft-delete de registros.** (Resuelve RF-08)
+  - *Dado* un estado con alerta de brote activa generada por un registro con picor 5.0,
+  - *Cuando* el usuario edita dicho registro reduciendo el picor a 1.5 o lo elimina mediante soft-delete (`deletedAt != null`),
+  - *Entonces* el flujo reactivo (`watchActivePatterns`) emite inmediatamente una lista actualizada sin el patrón de brote y el banner desaparece del Dashboard.
+  - *Cómo se demuestra:* Test unitario reactivo con Stream emitiendo una actualización tras modificar un registro y validando la extinción automática de la alerta.
+
+- **CA-09: Agregación de pico máximo diario y orden cronológico estricto.** (Resuelve RF-09)
+  - *Dado* un paciente con registros desordenados en el tiempo o múltiples entradas por día (ej. picor 2.0 a las 10:00 y 4.5 a las 19:00),
+  - *Cuando* el motor de patrones procesa la ventana móvil de 7 días,
+  - *Entonces* ordena los registros por `dateTime` clínico y computa el pico máximo diario ($4.5$) como representante de ese día calendario para el cálculo de brote sostenido o salto brusco.
+  - *Cómo se demuestra:* Test unitario pasando registros del mismo día y en orden cronológico inverso verificando que se toma el pico máximo y se computa el delta cronológico correcto.
+
 ---
 
 ## Decisiones Tomadas y Confirmadas
 
-1. **Umbral de Activación:** Regla combinada fija: Promedio de picor $\ge 3.5$ en los últimos 3 días O dos días consecutivos con picor $\ge 4.0$, o incremento brusco $\ge +2.0$ puntos en 24-48 horas.
-2. **Motor de Análisis:** Motor de reglas estadísticas determinista en el cliente (Dart + Drift SQLite). 100% offline, privado, latencia $< 5$ ms y coste cero.
+1. **Umbral de Activación:** Regla combinada fija: Promedio de picos diarios $\ge 3.5$ en los últimos 3 días con registro O dos días consecutivos con pico $\ge 4.0$, o incremento brusco $\ge +2.0$ puntos en 24-48 horas.
+2. **Motor de Análisis:** Motor de reglas estadísticas determinista en el cliente (Dart + Drift SQLite). 100% offline, privado, reactivo, latencia $< 5$ ms y coste cero.
 3. **Presencia en la Interfaz:** Doble presencia coordinada: Banner de alerta médica en el Dashboard (ante brote activo) + bloque completo de hallazgos clínicos en la pantalla de Analítica.
 4. **Descargo de Responsabilidad Médica:** Texto explícito en cada tarjeta o banner advirtiendo que la app es una herramienta de seguimiento y recomendando acudir al veterinario ante signos persistentes.
-5. **Mecanismo de Descarte:** Descarte temporal con botón "X" que oculta el banner hasta que ingrese un nuevo registro con mayor severidad.
+5. **Mecanismo de Descarte y Reactividad:** Descarte temporal con botón "X" que oculta el banner hasta que ingrese un nuevo registro con mayor severidad. Cualquier edición o eliminación recalcula inmediatamente las alertas.
+

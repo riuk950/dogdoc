@@ -59,15 +59,18 @@ El desarrollo se fundamenta en **Clean Architecture** con flujo unidireccional d
    - `KpiMetricsGrid`:
      - Cuadrícula de 3 tarjetas compactas:
        1. **Prurito:** Promedio con decimal (ej. `2.1/5`), variación porcentual respecto al período anterior (`-42% vs ant.`) e icono `trending_down` o `trending_up`.
-       2. **Sin brote:** Días con picor $\le 2$ (ej. `19/30d`, `+6 días paz`) con icono `verified`.
+       2. **Sin brote (Calma):** Días con pico de picor $\le 2.0$ según estándar PVAS (ej. `19/30d`, `+6 días calma`) con icono `verified`.
        3. **Tratamiento:** Porcentaje de adherencia a la medicación (ej. `96%`, `28/29 tomas`) con icono `medication`.
    - `PruritusEvolutionChart`:
      - Implementado con **`fl_chart`** (`LineChart`).
+     - Modo de agregación temporal:
+       - Rango **7 Días**: Muestra cada registro individual con su hora exacta (puntos secuenciales para observar variaciones mañana/tarde).
+       - Rangos **30 Días** y **3 Meses**: Cada punto representa un día calendario con el **pico máximo diario** (`max(itchLevel)`).
      - Curva continua suave (`isCurved: true`) con degradado vertical desde `#006750` con opacidad `0.32` a `0.0`.
-     - Líneas horizontales discontinuas de severidad clínica (Nvl 1 a Nvl 4).
+     - Líneas horizontales discontinuas de severidad clínica PVAS (Calma $\le 2.0$, Moderado $2.1\text{--}3.4$, Brote $\ge 3.5$).
      - Marcadores de hitos clínicos destacados con iconos interactivos (ej. 🥗 dieta, 🌧️ clima/humedad, 💊 medicación).
      - Detección de brechas $> 4$ días: renderizado de tramo discontinuo/punteado.
-     - `LineTouchData`: Tooltip interactivo flotante con valor, fecha, factores y botón *"Ver registro completo"* que empuja `AllergyLogScreen(logId: point.logId)`.
+     - `LineTouchData`: Tooltip interactivo flotante con valor (o pico diario), fecha, factores y botón *"Ver registro completo"* que empuja `AllergyLogScreen(logId: point.logId)`.
      - Leyenda inferior con la media del período (ej. *"Media 30d: 2.1"*).
    - `BodyZonesFrequencyChart`:
      - Gráfica de barras horizontales (`BarChart` o contenedores estilizados según Stitch) con porcentajes de mayor a menor frecuencia:
@@ -141,7 +144,7 @@ El desarrollo se fundamenta en **Clean Architecture** con flujo unidireccional d
   class KpiMetrics {
     final double averagePruritus;
     final double? previousPeriodPercentageDiff;
-    final int calmDaysCount; // días con picor <= 2
+    final int calmDaysCount; // días con pico diario de picor <= 2.0 (Calma PVAS)
     final int totalDaysCount;
     final int medicationTakenCount;
     final int medicationTotalScheduledCount;
@@ -217,6 +220,9 @@ El desarrollo se fundamenta en **Clean Architecture** con flujo unidireccional d
 
 - **`repositories/analytics_repository_impl.dart`**:
   - Consulta a `AllergyLogsTable` filtrando por `pet_id == targetPetId` y `date_time BETWEEN range.startDate AND range.endDate`, ordenado cronológicamente por `date_time ASC`.
+  - Agregación diferenciada según el tipo de rango temporal:
+    - En **7 Días**: Emite cada registro como punto discreto con su timestamp exacto.
+    - En **30 Días** y **3 Meses**: Agrupa los registros por fecha calendario (`YYYY-MM-DD`) y calcula el valor como el pico máximo del día (`max(itchLevel)`).
   - Consulta a `MedicationDoseLogsTable` para contabilizar las tomas realizadas en el rango temporal.
   - Consulta de los registros del período inmediatamente anterior (de idéntica duración) para calcular la tasa de variación porcentual:
     $$\text{Diff\%} = \frac{\text{Media Actual} - \text{Media Anterior}}{\text{Media Anterior}} \times 100$$

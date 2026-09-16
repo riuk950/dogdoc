@@ -175,6 +175,26 @@ El usuario puede registrar múltiples entradas diarias para su mascota seleccion
 
 ---
 
+## Requisitos Funcionales
+
+| Requisito | Descripción | Criterio de Aceptación Asociado |
+|---|---|---|
+| **RF-01** | Registro completo de síntomas con índice de picor, inflamación, zonas, desencadenantes, medicación y foto. | CA-01 |
+| **RF-02** | Registro clínico mínimo válido aportando únicamente el nivel de picor obligatorio. | CA-02 |
+| **RF-03** | Matriz interactiva de severidad de picor 1-5 con coloración dinámica y descripciones clínicas. | CA-03 |
+| **RF-04** | Selector multiselección de zonas corporales anatómicas afectadas con marcas de confirmación. | CA-04 |
+| **RF-05** | Soporte de múltiples entradas diarias diferenciadas por timestamp y agregación por pico máximo. | CA-05 |
+| **RF-06** | Adjuntar, previsualizar y almacenar localmente fotografías de lesiones dérmicas. | CA-06 |
+| **RF-07** | Guardado offline inmediato del registro en Drift SQLite como fuente de verdad local. | CA-07 |
+| **RF-08** | Sincronización automática de datos clínicos con Cloud Firestore al restablecerse la red. | CA-08 |
+| **RF-09** | Carga asíncrona de fotografías de lesiones en Firebase Storage con URL remota en Firestore. | CA-09 |
+| **RF-10** | Prevención de doble guardado y debounce en el botón principal del formulario. | CA-10 |
+| **RF-11** | Aislamiento estricto de registros clínicos por `petId` sin cruce entre mascotas. | CA-11 |
+| **RF-12** | Edición y eliminación (soft-delete) de registros clínicos existentes con recálculo reactivo. | CA-12 |
+| **RF-13** | Validación de fechas no futuras y fallback ante fotografías locales faltantes en disco. | CA-13 |
+
+---
+
 ## Criterios de aceptación
 
 <!-- Cada uno se responde sí/no mirando la feature funcionando, sin interpretar.
@@ -185,13 +205,15 @@ El usuario puede registrar múltiples entradas diarias para su mascota seleccion
 - [ ] **CA-02 (Registro mínimo obligatorio):** Dado un usuario que solo selecciona el nivel de picor (escala 1 a 5) y deja vacías las zonas, factores, medicamentos y foto, cuando pulsa "Guardar Registro de Hoy", entonces el registro se almacena válidamente con las listas vacías y la fecha/hora actual.
 - [ ] **CA-03 (Selector interactivo de picor 1-5):** Dado el selector de índice de picor, cuando el usuario pulsa un nivel (ej. Nivel 4), entonces dicho nivel se resalta visualmente con su color de severidad correspondiente (`#F97316`) y la caja de texto inferior actualiza la descripción clínica del síntoma.
 - [ ] **CA-04 (Multiselección de zonas corporales):** Dado el mapa de zonas corporales, cuando el usuario pulsa sobre "Orejas / Oídos" y "Patas / Almohadillas", entonces ambas opciones se marcan como seleccionadas con icono de confirmación y quedan asociadas al log.
-- [ ] **CA-05 (Múltiples registros en el mismo día):** Dado un usuario que ya registró una entrada a las 10:00 AM para su perro "Max", cuando crea una nueva entrada a las 18:30 PM para el mismo perro, entonces ambas entradas se guardan como registros independientes en Drift diferenciados por su marca temporal (`dateTime`).
+- [ ] **CA-05 (Múltiples registros en el mismo día y pico diario):** Dado un usuario que ya registró una entrada a las 10:00 AM (picor 2) para su perro "Max", cuando crea una nueva entrada a las 18:30 PM (picor 4) para el mismo perro, entonces ambas entradas se guardan como registros independientes en Drift con su timestamp exacto, y el Dashboard/KPIs diarios adoptan el pico máximo de severidad (4.0) indicando *"2 registros hoy"*.
 - [ ] **CA-06 (Adjuntar fotografía de lesión):** Dado un usuario en la sección de evidencia visual, cuando selecciona una foto de la lesión desde la galería o cámara, entonces se muestra la miniatura con botón de eliminar y la foto se almacena localmente en el directorio de la mascota.
 - [ ] **CA-07 (Persistencia offline en Drift):** Dado un dispositivo en modo avión, cuando se guarda un registro diario con o sin foto, entonces el registro queda persistido en SQLite Drift con `isSynced = false` y es visible en el historial local del perro.
 - [ ] **CA-08 (Sincronización automática con Firestore):** Dado un registro diario creado en modo offline, cuando el dispositivo recupera la conexión a internet, entonces el registro se sube a `/users/{uid}/pets/{petId}/logs/{logId}` en Cloud Firestore y su bandera local en Drift cambia a `isSynced = true`.
 - [ ] **CA-09 (Sincronización de foto de lesión con Firebase Storage):** Dado un registro offline con fotografía de lesión, cuando se restablece la conexión, entonces la foto se sube a Firebase Storage, la URL remota se guarda en el documento de Firestore y la bandera `photoSynced` pasa a `true`.
 - [ ] **CA-10 (Prevención de pulsaciones duplicadas):** Dado un guardado en curso, cuando el usuario presiona repetidamente el botón "Guardar Registro de Hoy", entonces el botón queda deshabilitado tras el primer toque y solo se genera un único registro en la base de datos.
 - [ ] **CA-11 (Convivencia y aislamiento estricto por mascota):** Dado un usuario con dos perros ("Max" y "Bella"), cuando guarda un registro para "Max", entonces dicho registro se vincula exclusivamente al `petId` de Max y no aparece en el historial de Bella ni en el catálogo base de razas.
+- [ ] **CA-12 (Edición y eliminación de registros):** Dado un registro clínico existente, cuando el usuario lo edita o elimina, entonces en Drift se actualiza su contenido o se marca como soft-delete (`deletedAt`), recalculando reactivamente los promedios y sincronizando el cambio en Cloud Firestore y Storage.
+- [ ] **CA-13 (Restricción de fechas futuras y fallback de fotos):** Dado el formulario de registro, cuando se asigna la fecha, no permite seleccionar fechas u horas futuras (`dateTime <= DateTime.now()`); y si un archivo de foto local fue eliminado del almacenamiento, la pantalla muestra un placeholder amigable *"Foto no disponible"* sin fallar ni bloquear la navegación.
 
 ---
 
@@ -206,13 +228,15 @@ El usuario puede registrar múltiples entradas diarias para su mascota seleccion
 - **CA-02** → Test unitario en `create_allergy_log_use_case_test.dart` verificando guardado válido con campos opcionales nulos/vacíos.
 - **CA-03** → Test de widget `itch_matrix_selector_test.dart` verificando actualización de estilo y texto reactivo al cambiar de nivel 1 a 5.
 - **CA-04** → Test de widget `body_zones_selector_test.dart` verificando selección múltiple e iconos de estado.
-- **CA-05** → Test unitario en `allergy_log_repository_test.dart` comprobando que dos entradas para el mismo `petId` en la misma fecha se persisten como registros separados con distintas marcas de tiempo.
+- **CA-05** → Test unitario en `allergy_log_repository_test.dart` comprobando persistencia de múltiples registros y cálculo del pico diario.
 - **CA-06** → Test de widget `lesion_photo_picker_test.dart` verificando visualización de miniatura y botón de eliminación.
 - **CA-07** → Test instrumental simulando desconexión de red (modo avión) comprobando inserción en `AllergyLogsTable` con `isSynced = false`.
 - **CA-08** → Test de integración `allergy_sync_service_test.dart` comprobando subida a Cloud Firestore y actualización a `isSynced = true`.
 - **CA-09** → Test de integración de subida de imagen verificando existencia del archivo en Firebase Storage y URL guardada.
 - **CA-10** → Test de widget `save_log_debounce_test.dart` verificando `onPressed == null` mientras `isSubmitting == true`.
-- **CA-11** → Test unitario `allergy_repository_isolation_test.dart` comprobando que las consultas por `petId` aíslan completamente los registros entre mascotas y no se vinculan al catálogo JSON.
+- **CA-11** → Test unitario `allergy_repository_isolation_test.dart` comprobando aislamiento por `petId`.
+- **CA-12** → Test de repositorio `edit_delete_allergy_log_test.dart` verificando soft-delete con `deletedAt` y sincronización.
+- **CA-13** → Test de widget `future_date_and_photo_fallback_test.dart` verificando el bloqueo de fechas futuras y renderizado de placeholder ante archivo faltante.
 
 ---
 

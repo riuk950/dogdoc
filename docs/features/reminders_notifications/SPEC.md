@@ -60,6 +60,25 @@ El usuario puede programar, gestionar y recibir alertas y notificaciones locales
 
 ---
 
+## Requisitos Funcionales (RF)
+
+| ID | Requisito | Criterio de Aceptación |
+|---|---|---|
+| **RF-01** | Programación de recordatorio diario para registro de síntomas por mascota. | CA-01 |
+| **RF-02** | Programación de recordatorio de medicación con nombre, dosis, horario y mascota. | CA-02 |
+| **RF-03** | Activación y desactivación inmediata de recordatorios mediante switch sin perder configuración. | CA-03 |
+| **RF-04** | Eliminación completa de recordatorio y cancelación de todas sus alarmas asociadas en el SO. | CA-04 |
+| **RF-05** | Comportamiento no bloqueante y feedback visual amigable ante permisos de notificación denegados. | CA-05 |
+| **RF-06** | Redirección contextual directa (deep linking) al pulsar notificación de registro de síntomas. | CA-06 |
+| **RF-07** | Registro de dosis administrada y actualización de estado en Dashboard ("Administrado hoy"). | CA-07 |
+| **RF-08** | Opción de posponer alerta de medicación durante 15 minutos (snooze) sin registrar dosis. | CA-08 |
+| **RF-09** | Reprogramación automática y sin duplicados de alarmas activas tras reinicio del dispositivo. | CA-09 |
+| **RF-10** | Sincronización offline-first de recordatorios e historial de dosis en Cloud Firestore. | CA-10 |
+| **RF-11** | Algoritmo determinista de IDs numéricos para alarmas locales evitando colisiones entre mascotas y días. | CA-11 |
+| **RF-12** | Ventana horaria de dosis (medianoche a medianoche local) y soporte para optimización de batería en Android. | CA-12 |
+
+---
+
 ## Flujos, Reglas de Negocio y Casos de Error
 
 ### Flujo 1: Configurar Recordatorio de Registro Diario de Síntomas
@@ -104,7 +123,7 @@ En cumplimiento con [`docs/MOBILE_GUIDELINES.md`](file:///Users/diego/FlutterPro
 
 1. **Permisos y Capacidades del Dispositivo:**
    - En Android 13+ (API 33+), se comprueba y solicita el permiso `POST_NOTIFICATIONS`.
-   - Para alarmas exactas en Android 12+, se utiliza `SCHEDULE_EXACT_ALARM` con fallback degradado a inexactas si el dispositivo se encuentra en modo extremo de ahorro de batería.
+   - Para alarmas exactas en Android 12+, se utiliza `SCHEDULE_EXACT_ALARM` con fallback degradado a inexactas si el dispositivo se encuentra en modo extremo de ahorro de batería o no tiene concedido el permiso exacto (`canScheduleExactAlarms()`).
    - Si el permiso es denegado o revocado, el flujo **no se bloquea**: se permite crear y editar horarios, y se presenta un banner contextual no invasivo con botón para abrir los ajustes del sistema (`openAppSettings()`).
 2. **Ciclo de Vida y Notificaciones en Background:**
    - La ejecución de las alertas se delega íntegramente al programador del sistema operativo (`AlarmManager` en Android / `UNUserNotificationCenter` en iOS), asegurando que suenen con puntualidad aunque la app esté en segundo plano, la pantalla apagada o el proceso de la aplicación haya sido terminado por el sistema.
@@ -113,7 +132,7 @@ En cumplimiento con [`docs/MOBILE_GUIDELINES.md`](file:///Users/diego/FlutterPro
    - La programación de tiempos recurrentes utiliza la librería `timezone` con `tz.TZDateTime` basada en la base de datos IANA local detectada mediante `flutter_timezone`, evitando desfases horarios por cambios de hora (verano/invierno) o desplazamientos del usuario.
 4. **Persistencia y Modo Offline:**
    - Funcionamiento 100% autónomo y offline: tanto la programación de alarmas como el registro de adherencia de tomas se ejecutan localmente en Drift SQLite sin requerir conectividad de red.
-   - Sincronización bidireccional en segundo plano con Cloud Firestore bajo la jerarquía `/users/{uid}/pets/{petId}/...` mediante el patrón *Offline-First Reactive Cache*.
+   - Sincronización bidireccional en segundo plano con Cloud Firestore bajo la jerarquía `/users/{uid}/pets/{petId}/reminders/{reminderId}` y `/users/{uid}/pets/{petId}/dose_logs/{logId}` mediante el patrón *Offline-First Reactive Cache*.
 5. **Prevención de Operaciones Duplicadas y Estados de Carga:**
    - En el diálogo de "Marcar como Administrado", el botón se deshabilita instantáneamente al primer toque con indicador visual de confirmación para impedir registros duplicados de dosis.
 
@@ -121,65 +140,80 @@ En cumplimiento con [`docs/MOBILE_GUIDELINES.md`](file:///Users/diego/FlutterPro
 
 ## Criterios de Aceptación y Validación
 
-- **CA-01: Creación de recordatorio diario de síntomas.**
+- **CA-01: Creación de recordatorio diario de síntomas.** (Resuelve RF-01)
   - *Dado* que el usuario está en `reminders_screen.dart`,
   - *Cuando* programa una alerta para las 20:00 con repetición diaria para su mascota Max y pulsa "Guardar",
   - *Entonces* se crea un registro en `RemindersTable` con `isEnabled = true` y se invoca la programación de alarma en `NotificationService` con fecha/hora local calculada.
   - *Cómo se demuestra:* Test unitario de integración con mock de `NotificationService` comprobando llamada a `zonedSchedule` con argumentos correctos y verificación de guardado en Drift SQLite.
 
-- **CA-02: Creación de recordatorio de medicación con dosis y mascota.**
+- **CA-02: Creación de recordatorio de medicación con dosis y mascota.** (Resuelve RF-02)
   - *Dado* una mascota registrada,
   - *Cuando* el usuario crea una alerta para "Apoquel 16mg" a las 14:00 vinculada a Max,
   - *Entonces* el recordatorio se guarda con tipo `medication`, dosis y nombre del fármaco, y la alarma se programa en el sistema.
   - *Cómo se demuestra:* Test unitario validando la entidad `Reminder` y el registro correspondiente en base de datos.
 
-- **CA-03: Activación y desactivación rápida (Switch toggle).**
+- **CA-03: Activación y desactivación rápida (Switch toggle).** (Resuelve RF-03)
   - *Dado* un recordatorio activo en la lista,
   - *Cuando* el usuario conmuta el switch a inactivo (`false`),
   - *Entonces* la alarma se cancela inmediatamente en el sistema operativo mediante su ID y se actualiza `isEnabled = false` en Drift; al volver a activarlo (`true`), se reprograma la alarma.
   - *Cómo se demuestra:* Test unitario verificando que el BLoC llama a `cancelNotification` al recibir `ToggleReminderEvent(false)` y a `scheduleNotification` al recibir `ToggleReminderEvent(true)`.
 
-- **CA-04: Eliminación de recordatorio.**
+- **CA-04: Eliminación de recordatorio.** (Resuelve RF-04)
   - *Dado* un recordatorio existente,
   - *Cuando* el usuario lo elimina desde la lista y confirma el diálogo de borrado,
   - *Entonces* se eliminan sus registros locales/remotos y se cancela su alarma en el sistema operativo.
   - *Cómo se demuestra:* Test de repositorio verificando que el registro ya no existe en Drift y que se invoca `cancel` en el servicio de notificaciones.
 
-- **CA-05: Manejo no bloqueante de permisos denegados.**
+- **CA-05: Manejo no bloqueante de permisos denegados.** (Resuelve RF-05)
   - *Dado* que el permiso de notificaciones no ha sido concedido por el usuario,
   - *Cuando* el usuario abre la pantalla de recordatorios o guarda una alarma,
   - *Entonces* la interfaz permite guardar la configuración, no sufre bloqueos y muestra un banner amigable indicando que las alertas están silenciadas con un botón para abrir los Ajustes del sistema.
   - *Cómo se demuestra:* Test de widget con mock de permisos en estado `denied` comprobando la visibilidad del widget `PermissionBanner`.
 
-- **CA-06: Redirección contextual al tocar notificación de síntomas (Deep Link).**
+- **CA-06: Redirección contextual al tocar notificación de síntomas (Deep Link).** (Resuelve RF-06)
   - *Dado* que el sistema dispara una notificación de registro diario de síntomas,
   - *Cuando* el usuario pulsa sobre la notificación desde la bandeja del sistema,
   - *Entonces* la app se abre y navega directamente a `AllergyLogScreen` preseleccionando la mascota asociada.
   - *Cómo se demuestra:* Test de navegación con payload de notificación comprobando que el flujo de rutas conduce a `AllergyLogScreen` con el `petId` especificado.
 
-- **CA-07: Registro de adherencia de medicación (Marcar como Administrado).**
+- **CA-07: Registro de adherencia de medicación (Marcar como Administrado).** (Resuelve RF-07)
   - *Dado* un recordatorio de medicación y su notificación activa o diálogo en app,
   - *Cuando* el usuario pulsa "Marcar como Administrado",
   - *Entonces* se inserta un registro en `MedicationDoseLogsTable` con timestamp UTC y la tarjeta de medicación del Dashboard se actualiza a estado "Administrado hoy".
   - *Cómo se demuestra:* Test unitario validando la inserción en `MedicationDoseLogsTable` y la emisión del estado actualizado en el BLoC del Dashboard.
 
-- **CA-08: Acción de posponer recordatorio (Snooze 15 min).**
+- **CA-08: Acción de posponer recordatorio (Snooze 15 min).** (Resuelve RF-08)
   - *Dado* un diálogo o acción de recordatorio de medicación,
   - *Cuando* el usuario selecciona "Posponer 15 min",
   - *Entonces* se programa una notificación puntual única a `DateTime.now().add(const Duration(minutes: 15))` sin marcar la toma como administrada.
   - *Cómo se demuestra:* Test unitario verificando la llamada a `scheduleOneOff` con la hora incrementada en 15 minutos.
 
-- **CA-09: Resistencia al reinicio del dispositivo (Device Reboot).**
+- **CA-09: Resistencia al reinicio del dispositivo (Device Reboot).** (Resuelve RF-09)
   - *Dado* un listado de recordatorios con `isEnabled = true` en Drift SQLite,
   - *Cuando* se simula el arranque del sistema (`BOOT_COMPLETED`),
   - *Entonces* el caso de uso `RescheduleAllRemindersUseCase` lee todas las alarmas activas y las re-encola en el sistema operativo sin duplicación.
   - *Cómo se demuestra:* Test unitario ejecutando el caso de uso y verificando que cada recordatorio activo se programa una única vez en `NotificationService`.
 
-- **CA-10: Sincronización en segundo plano con Cloud Firestore.**
+- **CA-10: Sincronización en segundo plano con Cloud Firestore.** (Resuelve RF-10)
   - *Dado* un dispositivo conectado tras operar offline,
   - *Cuando* se crea, edita o marca una toma de medicación,
-  - *Entonces* los cambios se sincronizan en Firestore bajo `/users/{uid}/pets/{petId}/reminders/` y `dose_logs/` siguiendo la política *Last-Write-Wins*.
+  - *Entonces* los cambios se sincronizan en Firestore bajo `/users/{uid}/pets/{petId}/reminders/{reminderId}` y `/users/{uid}/pets/{petId}/dose_logs/{logId}` siguiendo la política *Last-Write-Wins*.
   - *Cómo se demuestra:* Test de integración verificando la sincronización en el `SyncCoordinator`.
+
+- **CA-11: Algoritmo determinista de IDs enteros para notificaciones locales.** (Resuelve RF-11)
+  - *Dado* un recordatorio identificado por un UUID String (`reminder.id`),
+  - *Cuando* se programan sus alarmas en `flutter_local_notifications` (que requiere IDs tipo `int` de 32 bits con signo),
+  - *Entonces* el ID numérico se calcula como:
+    - Para recurrencia semanal/diaria por día: `int id = ((reminder.id.hashCode ^ dayOfWeek) & 0x7FFFFFFF)`.
+    - Para alarmas puntuales o snooze: `int id = ((reminder.id.hashCode ^ (scheduledAt.millisecondsSinceEpoch ~/ 1000)) & 0x7FFFFFFF)`.
+    - Esto garantiza unívocamente que dos recordatorios de distintas mascotas o días no colisionen en el NotificationManager del SO.
+  - *Cómo se demuestra:* Test unitario validando que diferentes recordatorios y días generan enteros positivos de 32 bits disjuntos y reproducibles.
+
+- **CA-12: Ventana horaria de dosis diaria y optimización de batería.** (Resuelve RF-12)
+  - *Dado* el cálculo de "Administrado hoy" en el Dashboard,
+  - *Cuando* se verifica si una medicación fue tomada en la fecha actual,
+  - *Entonces* se utiliza la ventana horaria local de `00:00:00` a `23:59:59.999` en la zona horaria del dispositivo; y en Android 12+, si `canScheduleExactAlarms()` retorna falso o el fabricante activa optimización de batería agresiva, el sistema programa con fallback inexacto y sugiere al usuario desactivar optimización para DogDoc.
+  - *Cómo se demuestra:* Test unitario probando registros tomados a las 23:58 vs 00:02 del día siguiente y test de servicio validando la comprobación de exact alarms.
 
 ---
 
@@ -187,6 +221,7 @@ En cumplimiento con [`docs/MOBILE_GUIDELINES.md`](file:///Users/diego/FlutterPro
 
 1. **Mecanismo de Notificaciones:** Notificaciones locales programadas en el dispositivo (`flutter_local_notifications` + `timezone`). Funcionan 100% offline, sin coste de servidores ni dependencia de conexión de datos, garantizando puntualidad y precisión.
 2. **Navegación al pulsar la Notificación:** Navegación contextual directa. La notificación de síntomas abre directamente el formulario de "Nuevo Registro Diario" con la mascota preseleccionada; la de medicación abre un diálogo rápido para "Marcar como administrado" o "Posponer 15 min".
-3. **Vinculación con Mascotas:** Cada recordatorio se vincula a una mascota concreta (nombre y avatar) para contextualizar claramente las dosis y los síntomas.
-4. **Historial de Adherencia de Medicación:** Se registra cada toma confirmada en la base de datos (`MedicationDoseLogsTable` en Drift SQLite y Firestore) para alimentar el widget del Dashboard y generar evidencia para futuros informes veterinarios.
-5. **Tratamiento ante Permisos Denegados:** Flujo no bloqueante. Se permite configurar y guardar horarios en todo momento; la app presenta un banner amigable informando del estado silenciado con botón de acceso a Ajustes del sistema.
+3. **Vinculación con Mascotas y Ruta Firestore:** Cada recordatorio pertenece a una mascota concreta y se sincroniza en Firestore bajo la ruta unificada `/users/{uid}/pets/{petId}/reminders/{reminderId}` y `/users/{uid}/pets/{petId}/dose_logs/{logId}`.
+4. **Historial de Adherencia y Ventana Diaria:** Se registra cada toma confirmada en la base de datos (`MedicationDoseLogsTable` en Drift SQLite y Firestore). La comprobación de "Administrado hoy" usa el día calendario local (`00:00:00` a `23:59:59.999`).
+5. **Tratamiento ante Permisos y Batería:** Flujo no bloqueante. Se permite configurar y guardar horarios en todo momento; la app presenta un banner amigable informando del estado silenciado con botón de acceso a Ajustes del sistema y maneja degradación elegante si no hay permiso de exact alarm.
+
