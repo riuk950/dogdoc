@@ -13,7 +13,7 @@
 
 ## Resumen de Progreso
 
-- [ ] Fase 1: Configuración de Dependencias y Assets (0/2)
+- [x] Fase 1: Configuración de Dependencias y Assets (2/2)
 - [ ] Fase 2: Capa Core y Dominio (0/3)
 - [ ] Fase 3: Capa de Datos y Persistencia (Drift + Firebase) (0/4)
 - [ ] Fase 4: Capa de Presentación e Interfaces Stitch (0/4)
@@ -23,40 +23,47 @@
 
 ## Fase 1: Configuración de Dependencias y Assets
 
-### [ ] TASK-01: Configuración de dependencias en `pubspec.yaml`
+### [x] TASK-01: Configuración de dependencias en `pubspec.yaml`
 - **Objetivo:** Incorporar las librerías requeridas para Firebase Auth, Cloud Firestore, Drift, Service Locator y utilidades de conectividad.
 - **Alcance:** Editar [`pubspec.yaml`](file:///Users/diego/FlutterProjects/dogdoc/pubspec.yaml), declarar sección `assets: [assets/data/]`, y ejecutar `flutter pub get`.
 - **Dependencias:** Ninguna.
-- **Criterios resueltos:** Base para CA-01 a CA-14.
+- **Criterios resueltos:** Base para CA-01 a CA-14 (Habilita infraestructura para RF-01 a RF-14).
 - **Método de validación:** Ejecutar `flutter pub get` sin errores de resolución de versiones.
 
 ---
 
-### [ ] TASK-02: Creación del catálogo base en `assets/data/dogs.json`
+### [x] TASK-02: Creación del catálogo base en `assets/data/dogs.json`
 - **Objetivo:** Proveer el catálogo inicial de razas caninas de solo lectura con información dermatológica y alergias comunes según la estructura canónica.
 - **Alcance:** Crear `assets/data/dogs.json` con al menos 5 razas representativas (Golden Retriever, Bulldog Francés, Poodle, Pastor Alemán, Yorkshire Terrier) conteniendo los campos canónicos: `id` (string), `name` (string), `commonAllergies` (List<String>), `averageWeightRangeKg` (`{min: double, max: double}`) y `skinType` (string).
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-08 (RF-08).
-- **Método de validación:** Test unitario que lee el asset y comprueba el parseo estricto del modelo `BreedCatalogItem`.
+- **Criterios resueltos:** CA-08 (Cubre directamente **RF-08**: *Lectura 100% offline del catálogo estático de razas caninas con datos dermatológicos*).
+- **Método de validación:** Test unitario `test/data/datasources/dogs_catalog_test.dart` que lee el asset y comprueba el parseo y validación estricta del esquema canónico.
 
 ---
 
 ## Fase 2: Capa Core y Dominio
 
-### [ ] TASK-03: Modelos de dominio y manejo de fallos
+### [x] TASK-03: Modelos de dominio y manejo de fallos
 - **Objetivo:** Definir las entidades inmutables y la jerarquía sellada de errores.
 - **Alcance:**
   - `lib/core/error/failures.dart` (`AuthFailure`, `DatabaseFailure`, `NetworkFailure`, `SyncFailure`).
+  - `lib/core/error/result.dart` (Pattern `Result<T>` con `Success` y `ErrorResult`).
   - `lib/domain/model/user.dart`.
   - `lib/domain/model/pet.dart`.
-  - `lib/domain/model/breed_catalog_item.dart`.
+  - `lib/domain/model/breed_catalog_item.dart` y `WeightRange`.
+  - `lib/domain/model/sync_result.dart`.
 - **Dependencias:** TASK-01.
-- **Criterios resueltos:** CA-05, CA-09.
-- **Método de validación:** Test unitario de instanciación y serialización de modelos.
+- **Criterios resueltos:** CA-05, CA-08, CA-09, CA-10, CA-11.
+  - **RF cubiertos directamente:**
+    - **RF-05**: Errores tipados de autenticación (`AuthFailure`).
+    - **RF-08**: Modelo canónico del catálogo de razas con dermatología (`BreedCatalogItem`, `WeightRange`).
+    - **RF-09 / RF-10**: Entidad `Pet` con aislamiento por `userId`, control de `isSynced` y `updatedAt`.
+    - **RF-11 / RF-12**: Modelo `SyncResult` para seguimiento del ciclo de sincronización.
+- **Método de validación:** Test unitarios `test/core/error/failures_and_result_test.dart` y `test/domain/model/domain_models_test.dart` pasando al 100%.
 
 ---
 
-### [ ] TASK-04: Contratos de repositorios en dominio
+### [x] TASK-04: Contratos de repositorios en dominio
 - **Objetivo:** Establecer las interfaces abstractas que desacoplan la lógica de negocio de la infraestructura.
 - **Alcance:**
   - `lib/domain/repository_contract/auth_repository.dart`.
@@ -65,11 +72,16 @@
   - `lib/domain/repository_contract/sync_repository.dart`.
 - **Dependencias:** TASK-03.
 - **Criterios resueltos:** CA-01 a CA-14.
-- **Método de validación:** Análisis estático con `flutter analyze`.
+  - **RF cubiertos (Contratos de Arquitectura):**
+    - **RF-01, RF-02, RF-04, RF-13, RF-14**: Contrato `AuthRepository` (`signIn`, `signUp`, `signOut`, `authStateChanges`, `currentUser`).
+    - **RF-08**: Contrato `CatalogRepository` (`getBreedCatalog`).
+    - **RF-09, RF-10**: Contrato `PetRepository` (`watchPetsByUser`, `savePet`, `deletePet`, `getUnsyncedPets`).
+    - **RF-11, RF-12**: Contrato `SyncRepository` (`syncPendingData`).
+- **Método de validación:** Análisis estático limpio con `flutter analyze` (0 errores, 0 warnings).
 
 ---
 
-### [ ] TASK-05: Casos de uso de autenticación y datos
+### [x] TASK-05: Casos de uso de autenticación y datos
 - **Objetivo:** Implementar las operaciones atómicas de negocio.
 - **Alcance:**
   - `lib/domain/usecases/auth/sign_in_use_case.dart`.
@@ -78,9 +90,19 @@
   - `lib/domain/usecases/auth/get_auth_state_use_case.dart`.
   - `lib/domain/usecases/catalog/get_dog_catalog_use_case.dart`.
   - `lib/domain/usecases/pets/sync_pets_use_case.dart`.
+  - `lib/domain/usecases/pets/save_pet_use_case.dart`.
+  - `lib/domain/usecases/pets/watch_pets_use_case.dart`.
 - **Dependencias:** TASK-04.
-- **Criterios resueltos:** CA-02, CA-04, CA-08, CA-11.
-- **Método de validación:** Tests unitarios de casos de uso con mocks de repositorios.
+- **Criterios resueltos:** CA-01, CA-02, CA-04, CA-08, CA-09, CA-10, CA-11, CA-14.
+  - **RF cubiertos directamente (Reglas de negocio puras):**
+    - **RF-01**: `GetAuthStateUseCase` (observación reactiva del estado y token de sesión).
+    - **RF-02**: `SignUpUseCase` (creación de cuenta).
+    - **RF-04**: `SignInUseCase` (autenticación con credenciales).
+    - **RF-08**: `GetDogCatalogUseCase` (consulta del catálogo de razas caninas).
+    - **RF-09 / RF-10**: `SavePetUseCase`, `WatchPetsUseCase` (persistencia y aislamiento por usuario).
+    - **RF-11**: `SyncPetsUseCase` (orquestación del proceso de sincronización).
+    - **RF-14**: `SignOutUseCase` (cierre de sesión seguro).
+- **Método de validación:** Tests unitarios `test/domain/usecases/auth_usecases_test.dart` y `test/domain/usecases/catalog_and_sync_usecases_test.dart` pasando al 100%.
 
 ---
 

@@ -1,0 +1,73 @@
+[
+  {
+    "id": "breed_golden_retriever",
+    "name": "Golden Retriever",
+    "commonAllergies": [
+      "Polen ambiental",
+      "Ácaros del polvo",
+      "Proteína de pollo",
+      "Picadura de pulga"
+    ],
+    "averageWeightRangeKg": {
+      "min": 25.0,
+      "max": 34.0
+    },
+    "skinType": "Manto denso con subpelo impermeable; alta predisposición a dermatitis atópica y puntos calientes (hot spots)"
+  },
+  {
+    "id": "breed_french_bulldog",
+    "name": "Bulldog Francés",
+    "commonAllergies": [
+      "Alergia alimentaria (carne de vacuno, cereales)",
+      "Ácaros del polvo",
+      "Esporas fúngicas"
+    ],
+    "averageWeightRangeKg": {
+      "min": 8.0,
+      "max": 14.0
+    },
+    "skinType": "Piel braquicefálica con pliegues faciales profundos propensa a intertrigo e infecciones por Malassezia"
+  },
+  {
+    "id": "breed_poodle",
+    "name": "Poodle",
+    "commonAllergies": [
+      "Picadura de pulgas",
+      "Alérgenos por contacto",
+      "Gramíneas"
+    ],
+    "averageWeightRangeKg": {
+      "min": 4.0,
+      "max": 12.0
+    },
+    "skinType": "Pelo rizado hipoalergénico de crecimiento continuo; piel sensible y propensa a adenitis sebácea"
+  },
+  {
+    "id": "breed_german_shepherd",
+    "name": "Pastor Alemán",
+    "commonAllergies": [
+      "Dermatitis atópica estacional",
+      "Ácaros de almacenamiento",
+      "Proteínas lácteas"
+    ],
+    "averageWeightRangeKg": {
+      "min": 22.0,
+      "max": 40.0
+    },
+    "skinType": "Doble capa de pelo medio-largo; susceptibilidad a pioderma profunda y fístulas perianales"
+  },
+  {
+    "id": "breed_yorkshire_terrier",
+    "name": "Yorkshire Terrier",
+    "commonAllergies": [
+      "Alergia a la saliva de pulga",
+      "Champús y productos tópicos agresivos",
+      "Alérgenos del hogar"
+    ],
+    "averageWeightRangeKg": {
+      "min": 2.0,
+      "max": 4.0
+    },
+    "skinType": "Pelo fino sedoso sin subcapa; dermis delgada muy reactiva a irritaciones por contacto"
+  }
+]
